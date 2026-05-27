@@ -44,6 +44,8 @@ public:
     void SetDimmingEnabled(bool enabled);
     bool IsDimmingEnabled() const { return m_dimmingEnabled; }
     void UpdateCursorDimming();
+    void CheckVideoPlayback();
+    bool IsVideoDetected() const { return m_videoDetected; }
 
 private:
     DimmerManager() = default;
@@ -66,4 +68,5 @@ private:
 
     HCURSOR m_hOriginalArrow = nullptr;
     bool m_cursorDimmed = false;
+    bool m_videoDetected = false;
 };

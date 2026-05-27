@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/MIT-6B7280?style=flat-square&label=License" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/1.0.8-10B981?style=flat-square&label=Version" alt="Version 1.0.8">
+  <img src="https://img.shields.io/badge/1.0.9-10B981?style=flat-square&label=Version" alt="Version 1.0.9">
   <img src="https://img.shields.io/badge/Windows-0078D4?style=flat-square&logo=windows&logoColor=white&label=OS" alt="Windows">
   <img src="https://img.shields.io/badge/C%2B%2B17-00599C?style=flat-square&logo=c%2B%2B&logoColor=white&label=Language" alt="C++17">
 </p>

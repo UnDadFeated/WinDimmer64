@@ -235,6 +235,9 @@ void DimmerManager::UpdateCursorDimming() {
     if (m_isIdleState && m_idleDimLevel > dimLevel)
         dimLevel = m_idleDimLevel;
 
+    if (m_videoDetected)
+        dimLevel = 0;
+
     bool shouldDim = dimLevel >= 5;
 
     if (shouldDim && !m_cursorDimmed) {
@@ -255,6 +258,56 @@ void DimmerManager::UpdateCursorDimming() {
             m_hOriginalArrow = nullptr;
         }
         m_cursorDimmed = false;
+    }
+}
+
+void DimmerManager::CheckVideoPlayback() {
+    bool detected = false;
+    HWND hFore = GetForegroundWindow();
+    if (hFore) {
+        RECT fwRect;
+        if (GetWindowRect(hFore, &fwRect)) {
+            HMONITOR hMon = MonitorFromWindow(hFore, MONITOR_DEFAULTTONEAREST);
+            MONITORINFO mi = { sizeof(mi) };
+            if (GetMonitorInfoW(hMon, &mi)) {
+                if (fwRect.left <= mi.rcMonitor.left &&
+                    fwRect.top <= mi.rcMonitor.top &&
+                    fwRect.right >= mi.rcMonitor.right &&
+                    fwRect.bottom >= mi.rcMonitor.bottom) {
+                    wchar_t exe[128] = { 0 };
+                    DWORD pid = 0;
+                    GetWindowThreadProcessId(hFore, &pid);
+                    HANDLE hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+                    if (hProc) {
+                        DWORD size = 128;
+                        QueryFullProcessImageNameW(hProc, 0, exe, &size);
+                        CloseHandle(hProc);
+                    }
+                    if (exe[0]) {
+                        const wchar_t* mediaPlayers[] = {
+                            L"chrome.exe", L"msedge.exe", L"firefox.exe", L"opera.exe", L"brave.exe",
+                            L"vlc.exe", L"mpc-hc.exe", L"mpc-hc64.exe", L"mpc-be.exe", L"mpc-be64.exe",
+                            L"potplayer.exe", L"wmplayer.exe", L"groove.exe"
+                        };
+                        for (auto name : mediaPlayers) {
+                            if (!_wcsicmp(exe, name)) {
+                                detected = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (detected != m_videoDetected) {
+        m_videoDetected = detected;
+        for (auto& mon : m_monitors) {
+            if (mon.hwndOverlay) {
+                TriggerFade(mon.hwndOverlay);
+            }
+        }
+        UpdateCursorDimming();
     }
 }
 
@@ -299,7 +352,9 @@ LRESULT CALLBACK DimmerManager::OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, L
         case WM_TIMER: {
             if (wp == 1 && info) {
                 int target = 0;
-                if (DimmerManager::Instance().IsIdleState()) {
+                if (DimmerManager::Instance().IsVideoDetected()) {
+                    target = 0;
+                } else if (DimmerManager::Instance().IsIdleState()) {
                     // Dim when user is away (Idle Dimming)
                     target = DimmerManager::Instance().GetIdleDimLevel();
                 } else if (DimmerManager::Instance().IsDimmingEnabled() && info->enabled) {

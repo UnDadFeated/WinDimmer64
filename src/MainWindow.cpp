@@ -597,7 +597,7 @@ void MainWindow::OnPaint() {
     m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
 
     // Version Number in footer right
-    const wchar_t* versionStr = L"v1.0.8";
+    const wchar_t* versionStr = L"v1.0.9";
     m_pRenderTarget->DrawText(
         versionStr, 6,
         m_pTextFormatDetail,
@@ -1241,7 +1241,8 @@ LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                         }
                     }
                 } else if (wp == 202) {
-                    if (self->m_config.idleDimEnabled) {
+                    DimmerManager::Instance().CheckVideoPlayback();
+                    if (self->m_config.idleDimEnabled && !DimmerManager::Instance().IsVideoDetected()) {
                         LASTINPUTINFO lii = { 0 };
                         lii.cbSize = sizeof(lii);
                         if (GetLastInputInfo(&lii)) {
