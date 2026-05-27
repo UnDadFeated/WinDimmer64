@@ -122,13 +122,17 @@ private:
     void OnUpdateCheckComplete();
 
     // Blocked apps UI
-    bool m_blockedExpanded = true;
-    RECT m_blockedCardRect = { 0 };
+    static const int CONTENT_WIDTH = 480;
+    static const int PANEL_WIDTH = 200;
+    bool m_blockedExpanded = false;
+    int m_blockedScrollOffset = 0;
+    RECT m_blockedPanelRect = { 0 };
     RECT m_blockedArrowRect = { 0 };
     RECT m_blockedAddRect = { 0 };
     std::vector<UIBlockedAppItem> m_blockedItems;
     bool m_blockedArrowHovered = false;
     bool m_blockedAddHovered = false;
+    int m_blockedContentHeight = 0;
     void ShowAddAppDialog();
     void Repaint() { InvalidateRect(m_hwnd, nullptr, FALSE); }
 };

@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 #include "DimmerManager.h"
+#include <algorithm>
 #include <dwmapi.h>
 #include <shellapi.h>
 #include <strsafe.h>
@@ -252,6 +253,7 @@ void MainWindow::DiscardGraphicsResources() {
 void MainWindow::UpdateLayout() {
     m_sliders.clear();
     m_checkboxes.clear();
+    m_windowWidth = CONTENT_WIDTH;
 
     const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
 
@@ -357,35 +359,8 @@ void MainWindow::UpdateLayout() {
     AddCheckbox(L"StartWithWindows", m_config.startWithWindows, &m_config.startWithWindows, L"Start with Windows", 1, yOffset);
     yOffset += 22;
 
-    // ── BLOCKED APPS CARD ──
-    yOffset += 8;
-    int cardLeft = 20;
-    int cardRight = m_windowWidth - 35;
-    int cardWidth = cardRight - cardLeft;
-    int headerY = yOffset;
-
-    m_blockedArrowRect = { cardLeft + 12, headerY + 8, cardLeft + 30, headerY + 28 };
-    m_blockedAddRect = { cardRight - 80, headerY + 8, cardRight - 12, headerY + 28 };
-
-    yOffset = headerY + 36;
-
-    m_blockedItems.clear();
-    if (m_blockedExpanded) {
-        yOffset += 2;
-        for (const auto& app : m_config.blockedApps) {
-            UIBlockedAppItem item;
-            item.name = app;
-            item.textRect = { cardLeft + 20, yOffset, cardRight - 55, yOffset + 22 };
-            item.removeRect = { cardRight - 42, yOffset + 2, cardRight - 18, yOffset + 20 };
-            m_blockedItems.push_back(item);
-            yOffset += 24;
-        }
-        yOffset += 6;
-    } else {
-        yOffset += 6;
-    }
-
-    m_blockedCardRect = { cardLeft, headerY, cardRight, yOffset };
+    // ── BLOCKED APPS ──
+    m_blockedArrowRect = { CONTENT_WIDTH - 50, 5, CONTENT_WIDTH - 10, 25 };
 
     if (m_config.idleDimEnabled) {
         // Inactivity Minutes Slider Card
@@ -421,7 +396,34 @@ void MainWindow::UpdateLayout() {
     m_undoRect.top = m_windowHeight - 25;
     m_undoRect.right = m_windowWidth / 2 + 70;
     m_undoRect.bottom = m_windowHeight;
-    
+
+    // ── RIGHT-SIDE PANEL LAYOUT ──
+    int panelLeft = CONTENT_WIDTH + 10;
+    int panelTop = 30;
+    int panelRight = panelLeft + PANEL_WIDTH;
+    int panelBottom = m_windowHeight - 42;
+    m_blockedPanelRect = { panelLeft, panelTop, panelRight, panelBottom };
+
+    m_blockedAddRect = { panelLeft + 10, panelTop + 8, panelRight - 10, panelTop + 26 };
+
+    m_blockedItems.clear();
+    m_blockedContentHeight = 0;
+    if (m_blockedExpanded) {
+        int itemY = panelTop + 44;
+        for (const auto& app : m_config.blockedApps) {
+            UIBlockedAppItem item;
+            item.name = app;
+            item.textRect = { panelLeft + 10, itemY, panelRight - 50, itemY + 22 };
+            item.removeRect = { panelRight - 38, itemY + 2, panelRight - 14, itemY + 20 };
+            m_blockedItems.push_back(item);
+            itemY += 24;
+        }
+        itemY += 10;
+        m_blockedContentHeight = itemY - panelTop;
+    }
+
+    m_windowWidth = m_blockedExpanded ? (CONTENT_WIDTH + 10 + PANEL_WIDTH) : CONTENT_WIDTH;
+
     RECT rc = { 0, 0, m_windowWidth, m_windowHeight };
     AdjustWindowRectEx(&rc, GetWindowLongW(m_hwnd, GWL_STYLE), FALSE, GetWindowLongW(m_hwnd, GWL_EXSTYLE));
     SetWindowPos(m_hwnd, nullptr, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
@@ -608,7 +610,7 @@ void MainWindow::OnPaint() {
         );
 
         if (!cb.label.empty()) {
-            float labelRight = (cb.rect.left < m_windowWidth / 2) ? (m_windowWidth / 2.0f - 10.0f) : (m_windowWidth - 20.0f);
+            float labelRight = (cb.rect.left < CONTENT_WIDTH / 2) ? (CONTENT_WIDTH / 2.0f - 10.0f) : (CONTENT_WIDTH - 20.0f);
             m_pRenderTarget->DrawText(
                 cb.label.c_str(), static_cast<UINT32>(cb.label.length()),
                 m_pTextFormatDetail,
@@ -618,67 +620,86 @@ void MainWindow::OnPaint() {
         }
     }
 
-    // ── BLOCKED APPS CARD ──
-    if (m_blockedCardRect.bottom > m_blockedCardRect.top) {
-        D2D1_ROUNDED_RECT cardRect = D2D1::RoundedRect(
-            D2D1::RectF(m_blockedCardRect.left, m_blockedCardRect.top, m_blockedCardRect.right, m_blockedCardRect.bottom),
+    // ── RIGHT-SIDE PANEL ──
+    // Draw expansion arrow at top-right of content area
+    float ax = (float)m_blockedArrowRect.left;
+    float ay = (float)m_blockedArrowRect.top;
+    m_pRenderTarget->DrawText(
+        m_blockedExpanded ? L"\u25BC" : L"\u25B6", 1, m_pTextFormatDetail,
+        D2D1::RectF(ax, ay, ax + 16, ay + 16),
+        m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
+    );
+    m_pRenderTarget->DrawText(
+        L"Apps", 4, m_pTextFormatDetail,
+        D2D1::RectF(ax + 17, ay, ax + 60, ay + 16),
+        m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
+    );
+
+    if (m_blockedExpanded) {
+        D2D1_ROUNDED_RECT panelRect = D2D1::RoundedRect(
+            D2D1::RectF(m_blockedPanelRect.left, m_blockedPanelRect.top,
+                        m_blockedPanelRect.right, m_blockedPanelRect.bottom),
             8.0f, 8.0f
         );
-        m_pRenderTarget->FillRoundedRectangle(cardRect, m_pBrushCard);
-        m_pRenderTarget->DrawRoundedRectangle(cardRect, m_pBrushCardBorder, 1.2f);
+        m_pRenderTarget->FillRoundedRectangle(panelRect, m_pBrushCard);
+        m_pRenderTarget->DrawRoundedRectangle(panelRect, m_pBrushCardBorder, 1.2f);
 
-        float arrowX = m_blockedArrowRect.left + 2.0f;
-        float arrowY = m_blockedArrowRect.top + 2.0f;
+        float headerY = (float)m_blockedPanelRect.top + 12.0f;
         m_pRenderTarget->DrawText(
-            m_blockedExpanded ? L"\u25BC" : L"\u25B6", 1, m_pTextFormatDetail,
-            D2D1::RectF(arrowX, arrowY, arrowX + 16, arrowY + 16),
-            m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
-        );
-
-        m_pRenderTarget->DrawText(
-            L"BLOCKED APPS", 12, m_pTextFormatDetail,
-            D2D1::RectF(arrowX + 18, arrowY, arrowX + 150, arrowY + 16),
+            L"APPS", 4, m_pTextFormatDetail,
+            D2D1::RectF(m_blockedPanelRect.left + 12, headerY,
+                        m_blockedPanelRect.right - 10, headerY + 18),
             m_pBrushTextMuted
         );
-
-        float addX = m_blockedAddRect.left;
-        float addY = m_blockedAddRect.top + 1;
         m_pRenderTarget->DrawText(
             L"[+ Add]", 6, m_pTextFormatDetail,
-            D2D1::RectF(addX, addY, addX + 60, addY + 16),
+            D2D1::RectF(m_blockedAddRect.right - 52, headerY - 2,
+                        m_blockedAddRect.right, headerY + 18),
             m_blockedAddHovered ? m_pBrushAccent : m_pBrushText
         );
 
-        if (m_blockedExpanded) {
-            float sepY = m_blockedArrowRect.top + 30;
-            m_pRenderTarget->DrawLine(
-                D2D1::Point2F(m_blockedCardRect.left + 12, sepY),
-                D2D1::Point2F(m_blockedCardRect.right - 12, sepY),
-                m_pBrushCardBorder, 1.0f
-            );
+        float sepY = headerY + 26;
+        m_pRenderTarget->DrawLine(
+            D2D1::Point2F(m_blockedPanelRect.left + 12, sepY),
+            D2D1::Point2F(m_blockedPanelRect.right - 12, sepY),
+            m_pBrushCardBorder, 1.0f
+        );
 
-            for (const auto& item : m_blockedItems) {
-                m_pRenderTarget->DrawText(
-                    item.name.c_str(), (UINT32)item.name.length(), m_pTextFormatBody,
-                    D2D1::RectF(item.textRect.left, item.textRect.top, item.textRect.right, item.textRect.bottom),
-                    m_pBrushText
-                );
-                float rx = item.removeRect.left + 3;
-                float ry = item.removeRect.top + 1;
-                m_pRenderTarget->DrawText(
-                    L"\u2715", 1, m_pTextFormatDetail,
-                    D2D1::RectF(rx, ry, rx + 16, ry + 16),
-                    item.hoveredRemove ? m_pBrushAccent : m_pBrushTextMuted
-                );
-            }
+        float clipTop = sepY + 2;
+        float clipBottom = m_blockedPanelRect.bottom - 4;
+        m_pRenderTarget->PushAxisAlignedClip(
+            D2D1::RectF(m_blockedPanelRect.left, clipTop,
+                        m_blockedPanelRect.right, clipBottom),
+            D2D1_ANTIALIAS_MODE_PER_PRIMITIVE
+        );
+        m_pRenderTarget->SetTransform(
+            D2D1::Matrix3x2F::Translation(0.0f, -(float)m_blockedScrollOffset)
+        );
+
+        for (const auto& item : m_blockedItems) {
+            m_pRenderTarget->DrawText(
+                item.name.c_str(), (UINT32)item.name.length(), m_pTextFormatBody,
+                D2D1::RectF(item.textRect.left, item.textRect.top,
+                           item.textRect.right, item.textRect.bottom),
+                m_pBrushText
+            );
+            m_pRenderTarget->DrawText(
+                L"\u2715", 1, m_pTextFormatDetail,
+                D2D1::RectF(item.removeRect.left + 3, item.removeRect.top + 1,
+                           item.removeRect.left + 19, item.removeRect.top + 17),
+                item.hoveredRemove ? m_pBrushAccent : m_pBrushTextMuted
+            );
         }
+
+        m_pRenderTarget->SetTransform(D2D1::IdentityMatrix());
+        m_pRenderTarget->PopAxisAlignedClip();
     }
 
     // Technical Separator Line before Footer Metadata
     float footerY = static_cast<float>(m_windowHeight - 35);
     m_pRenderTarget->DrawLine(
         D2D1::Point2F(20.0f, footerY),
-        D2D1::Point2F(m_windowWidth - 35.0f, footerY),
+        D2D1::Point2F(CONTENT_WIDTH - 35.0f, footerY),
         m_pBrushCardBorder,
         1.0f
     );
@@ -727,18 +748,18 @@ void MainWindow::OnPaint() {
     wchar_t versionFull[64] = { 0 };
     if (m_updateChecked) {
         if (m_updateAvailable) {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.2.0");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.2.1");
         } else {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.2.0");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.2.1");
         }
     } else {
-        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.2.0");
+        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.2.1");
     }
     m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
     m_pRenderTarget->DrawText(
         versionFull, static_cast<UINT32>(wcslen(versionFull)),
         m_pTextFormatDetail,
-        D2D1::RectF(m_windowWidth - 170.0f, footerY + 10.0f, m_windowWidth - 25.0f, footerY + 28.0f),
+        D2D1::RectF(CONTENT_WIDTH - 170.0f, footerY + 10.0f, CONTENT_WIDTH - 25.0f, footerY + 28.0f),
         m_updateAvailable ? m_pBrushAccent : m_pBrushTextMuted
     );
     m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
@@ -851,12 +872,15 @@ void MainWindow::HandleMouseMove(int x, int y) {
     if (m_blockedArrowHovered != wasArrowHover) needsRepaint = true;
 
     bool wasAddHover = m_blockedAddHovered;
-    m_blockedAddHovered = (x >= m_blockedAddRect.left && x <= m_blockedAddRect.right && y >= m_blockedAddRect.top && y <= m_blockedAddRect.bottom);
+    m_blockedAddHovered = m_blockedExpanded && (x >= m_blockedAddRect.left && x <= m_blockedAddRect.right && y >= m_blockedAddRect.top && y <= m_blockedAddRect.bottom);
     if (m_blockedAddHovered != wasAddHover) needsRepaint = true;
 
+    // Panel items hover (adjusted for scroll offset)
+    int adjustedY = y + m_blockedScrollOffset;
     for (auto& item : m_blockedItems) {
         bool wasHover = item.hoveredRemove;
-        item.hoveredRemove = (x >= item.removeRect.left && x <= item.removeRect.right && y >= item.removeRect.top && y <= item.removeRect.bottom);
+        item.hoveredRemove = (x >= item.removeRect.left && x <= item.removeRect.right &&
+                             adjustedY >= item.removeRect.top && adjustedY <= item.removeRect.bottom);
         if (item.hoveredRemove != wasHover) needsRepaint = true;
     }
 
@@ -902,7 +926,7 @@ DWORD WINAPI MainWindow::CheckForUpdatesThread(LPVOID lpParam) {
                                             MultiByteToWideChar(CP_UTF8, 0, tag, len, ver, 32);
                                             self->m_latestVersion = ver;
                                             // Compare "1.0.9" with retrieved version
-                                            if (wcscmp(ver, L"1.2.0") > 0)
+                                            if (wcscmp(ver, L"1.2.1") > 0)
                                                 self->m_updateAvailable = true;
                                         }
                                     }
@@ -969,6 +993,7 @@ void MainWindow::HandleLButtonDown(int x, int y) {
     // Blocked apps interactions
     if (x >= m_blockedArrowRect.left && x <= m_blockedArrowRect.right && y >= m_blockedArrowRect.top && y <= m_blockedArrowRect.bottom) {
         m_blockedExpanded = !m_blockedExpanded;
+        if (!m_blockedExpanded) m_blockedScrollOffset = 0;
         UpdateLayout();
         Repaint();
         return;
@@ -978,8 +1003,10 @@ void MainWindow::HandleLButtonDown(int x, int y) {
         return;
     }
     if (m_blockedExpanded) {
+        int adjustedY = y + m_blockedScrollOffset;
         for (size_t i = 0; i < m_blockedItems.size(); ++i) {
-            if (x >= m_blockedItems[i].removeRect.left && x <= m_blockedItems[i].removeRect.right && y >= m_blockedItems[i].removeRect.top && y <= m_blockedItems[i].removeRect.bottom) {
+            if (x >= m_blockedItems[i].removeRect.left && x <= m_blockedItems[i].removeRect.right &&
+                adjustedY >= m_blockedItems[i].removeRect.top && adjustedY <= m_blockedItems[i].removeRect.bottom) {
                 m_config.blockedApps.erase(m_config.blockedApps.begin() + i);
                 DimmerManager::Instance().SetBlockedApps(m_config.blockedApps);
                 UpdateLayout();
@@ -1146,6 +1173,23 @@ void MainWindow::HandleLButtonUp(int x, int y) {
 }
 
 void MainWindow::HandleMouseWheel(short delta, int x, int y) {
+    // Panel scroll: if mouse is over the right-side panel
+    if (m_blockedExpanded) {
+        POINT pt = { x, y };
+        ScreenToClient(m_hwnd, &pt);
+        if (pt.x >= m_blockedPanelRect.left && pt.x <= m_blockedPanelRect.right &&
+            pt.y >= m_blockedPanelRect.top && pt.y <= m_blockedPanelRect.bottom) {
+            int visibleHeight = m_blockedPanelRect.bottom - m_blockedPanelRect.top - 60;
+            int maxOffset = std::max(0, m_blockedContentHeight - visibleHeight);
+            int step = (delta > 0) ? -30 : 30;
+            m_blockedScrollOffset += step;
+            if (m_blockedScrollOffset < 0) m_blockedScrollOffset = 0;
+            if (m_blockedScrollOffset > maxOffset) m_blockedScrollOffset = maxOffset;
+            Repaint();
+            return;
+        }
+    }
+
     // Zoom/increment the slider currently hovered
     POINT pt = { x, y };
     ScreenToClient(m_hwnd, &pt);

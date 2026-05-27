@@ -2,6 +2,14 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.2.1] - 2026-05-27
+
+### New Features
+* **Right-Side Panel for Blocked Apps**: Moved Blocked Apps out of the cramped inline card into a dedicated 200px scrollable panel on the right side. Click the "Apps" arrow at the top-right of the window to expand it. Scroll through the app list with the mouse wheel.
+
+### Updates
+* **Cleaner Default Blocklist**: Stripped browsers (Chrome, Edge, Firefox, Opera, Brave) and chat apps (Zoom, Teams, WhatsApp, Slack, Discord, Spotify) from the default blocked apps list. Only media players remain. Existing user configs are not affected.
+
 ## [1.2.0] - 2026-05-27
 
 ### New Features
