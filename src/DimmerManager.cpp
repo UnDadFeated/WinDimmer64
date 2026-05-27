@@ -268,24 +268,75 @@ void DimmerManager::UpdateCursorDimming() {
     }
 }
 
+// Helper struct for child window enumeration (UWP app container breakout)
+struct UwpWindowSearchInfo {
+    DWORD hostPid;
+    DWORD targetPid;
+};
+
+static BOOL CALLBACK EnumUwpChildProc(HWND hwnd, LPARAM lParam) {
+    auto* info = reinterpret_cast<UwpWindowSearchInfo*>(lParam);
+    DWORD childPid = 0;
+    GetWindowThreadProcessId(hwnd, &childPid);
+    if (childPid != 0 && childPid != info->hostPid) {
+        info->targetPid = childPid;
+        return FALSE; // Found the real application window, stop enumerating
+    }
+    return TRUE;
+}
+
+static DWORD GetRealProcessId(HWND hwnd) {
+    if (!hwnd) return 0;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(hwnd, &pid);
+
+    // Check if the foreground window process is ApplicationFrameHost.exe
+    wchar_t exe[MAX_PATH] = { 0 };
+    HANDLE hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (hProc) {
+        DWORD size = MAX_PATH;
+        QueryFullProcessImageNameW(hProc, 0, exe, &size);
+        CloseHandle(hProc);
+    }
+
+    if (exe[0]) {
+        const wchar_t* fname = wcsrchr(exe, L'\\');
+        fname = fname ? fname + 1 : exe;
+        if (lstrcmpiW(fname, L"ApplicationFrameHost.exe") == 0) {
+            UwpWindowSearchInfo info = { pid, 0 };
+            EnumChildWindows(hwnd, EnumUwpChildProc, reinterpret_cast<LPARAM>(&info));
+            if (info.targetPid != 0) {
+                return info.targetPid;
+            }
+        }
+    }
+    return pid;
+}
+
+static std::wstring GetProcessNameFromPid(DWORD pid) {
+    wchar_t exe[MAX_PATH] = { 0 };
+    HANDLE hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (hProc) {
+        DWORD size = MAX_PATH;
+        QueryFullProcessImageNameW(hProc, 0, exe, &size);
+        CloseHandle(hProc);
+    }
+    if (exe[0]) {
+        const wchar_t* fname = wcsrchr(exe, L'\\');
+        return fname ? fname + 1 : exe;
+    }
+    return L"";
+}
+
 void DimmerManager::CheckVideoPlayback() {
     bool detected = false;
     HWND hFore = GetForegroundWindow();
     if (hFore) {
-        wchar_t exe[128] = { 0 };
-        DWORD pid = 0;
-        GetWindowThreadProcessId(hFore, &pid);
-        HANDLE hProc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-        if (hProc) {
-            DWORD size = 128;
-            QueryFullProcessImageNameW(hProc, 0, exe, &size);
-            CloseHandle(hProc);
-        }
-        if (exe[0]) {
-            wchar_t* fname = wcsrchr(exe, L'\\');
-            fname = fname ? fname + 1 : exe;
+        DWORD pid = GetRealProcessId(hFore);
+        std::wstring fname = GetProcessNameFromPid(pid);
+        if (!fname.empty()) {
             for (const auto& name : m_blockedApps) {
-                if (lstrcmpiW(fname, name.c_str()) == 0) {
+                if (lstrcmpiW(fname.c_str(), name.c_str()) == 0) {
                     detected = true;
                     break;
                 }

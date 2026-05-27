@@ -9,6 +9,9 @@
 #include <shellapi.h>
 #include <objbase.h>
 #include <commctrl.h>
+#include <string>
+#include <vector>
+#include <winver.h>
 #pragma comment(linker,"\"/manifestdependency:type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
 
 #define IDI_APP 101
@@ -17,7 +20,7 @@
 static const wchar_t* APP_NAME = L"WinDimmer64";
 static const wchar_t* INSTALL_DIR = L"WinDimmer64";
 static const wchar_t* REG_PATH = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WinDimmer64";
-static const wchar_t* VER = L"1.2.3";
+static const wchar_t* VER = L"1.2.4";
 
 enum State { READY, INSTALLING, COMPLETE };
 static State g_state = READY;
@@ -34,6 +37,27 @@ static void GetInstallPath(wchar_t* buf, DWORD size) {
 
 static bool IsRunning() {
     return FindWindowW(L"WinDimmer64MainClass", NULL) != NULL;
+}
+
+static std::wstring GetExeVersion(const wchar_t* filepath) {
+    DWORD dummy = 0;
+    DWORD size = GetFileVersionInfoSizeW(filepath, &dummy);
+    if (size == 0) return L"unknown";
+
+    std::vector<BYTE> data(size);
+    if (!GetFileVersionInfoW(filepath, 0, size, data.data())) return L"unknown";
+
+    VS_FIXEDFILEINFO* pFileInfo = nullptr;
+    UINT len = 0;
+    if (VerQueryValueW(data.data(), L"\\", reinterpret_cast<void**>(&pFileInfo), &len) && len > 0 && pFileInfo) {
+        wchar_t buf[64];
+        swprintf(buf, 64, L"%d.%d.%d",
+            static_cast<int>(HIWORD(pFileInfo->dwProductVersionMS)),
+            static_cast<int>(LOWORD(pFileInfo->dwProductVersionMS)),
+            static_cast<int>(HIWORD(pFileInfo->dwProductVersionLS)));
+        return buf;
+    }
+    return L"unknown";
 }
 
 static bool ExtractApp(const wchar_t* dest) {
@@ -148,13 +172,18 @@ static LRESULT CALLBACK SetupWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
             bool running = IsRunning();
             bool installed = GetFileAttributesW(exePath) != INVALID_FILE_ATTRIBUTES;
 
+            std::wstring installedVer = L"";
+            if (installed) {
+                installedVer = GetExeVersion(exePath);
+            }
+
             wchar_t status[196];
             if (running && installed)
-                swprintf(status, 196, L"Running: v%s | Installed: v%s\r\nSetup will terminate and overwrite.", VER, VER);
+                swprintf(status, 196, L"Running: v%s | Installed: v%s\r\nSetup will terminate it and overwrite.", installedVer.c_str(), installedVer.c_str());
             else if (running)
-                swprintf(status, 196, L"Running: v%s\r\nSetup will terminate it and install.", VER);
+                swprintf(status, 196, L"Running: v%s\r\nSetup will terminate it and install.", installedVer.empty() ? L"unknown" : installedVer.c_str());
             else if (installed)
-                swprintf(status, 196, L"Installed: v%s\r\nSetup will overwrite the existing installation.", VER);
+                swprintf(status, 196, L"Installed: v%s\r\nSetup will overwrite the existing installation.", installedVer.c_str());
             else
                 swprintf(status, 196, L"Ready to install WinDimmer64 v%s", VER);
 

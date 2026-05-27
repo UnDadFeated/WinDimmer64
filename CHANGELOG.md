@@ -2,6 +2,11 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.2.4] - 2026-05-27
+
+### Bug Fixes
+* **UWP & Store App Dimming**: Resolved `ApplicationFrameHost.exe` window wrapping. UWP and Microsoft Store applications (such as Plex for Windows, Netflix, and Movies & TV) are now correctly resolved to their real process names (e.g. `Plex.exe`) by enumerating child windows, enabling them to be correctly matched against the blocked apps list.
+
 ## [1.2.3] - 2026-05-27
 
 ### Bug Fixes
