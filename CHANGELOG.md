@@ -5,7 +5,7 @@ All notable changes to the WinDimmer64 project are documented here.
 ## [1.0.9] - 2026-05-27
 
 ### Updates
-* **Video Playback Detection**: WinDimmer64 now detects when a fullscreen video is playing in a browser or media player and halts all dimming until playback stops.
+* **Video Playback Detection**: WinDimmer64 now detects when a video is playing in a browser or media player (windowed or fullscreen) and halts all dimming until playback stops. Supports Chrome, Edge, Firefox, VLC, Plex, MPC, PotPlayer, Spotify, Discord, and more.
 * **Black Cursor**: Dimmed cursor now turns fully black instead of proportionally dimming, with no flipping artifacts.
 * **Footer Undo**: Moved "Undo Changes" into the app footer, centered between the status indicator and version number. Removed the Undo checkbox row from the APPLICATION section, eliminating wasted space.
 * **Tighter Top Margin**: Reduced empty gap between title bar and first slider card from 52 to 30 pixels.
