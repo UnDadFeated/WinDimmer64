@@ -164,7 +164,12 @@ bool MainWindow::Create(HINSTANCE hInst, int nCmdShow) {
 
     UpdateLayout();
 
-    ShowWindow(m_hwnd, nCmdShow);
+    // If started with Windows and Close to Tray is enabled, start minimized to tray
+    if (m_config.startWithWindows && m_config.closeToTray) {
+        ShowWindow(m_hwnd, SW_HIDE);
+    } else {
+        ShowWindow(m_hwnd, nCmdShow);
+    }
     UpdateWindow(m_hwnd);
 
     return true;
@@ -567,13 +572,13 @@ void MainWindow::OnPaint() {
     for (const auto& cb : m_checkboxes) {
         if (cb.settingName == L"DimmingEnabled" && !cb.label.empty()) {
             m_pRenderTarget->DrawText(
-                L"SCREEN DIMMING", 13, m_pTextFormatDetail,
+                L"SCREEN DIMMING", 14, m_pTextFormatDetail,
                 D2D1::RectF(25.0f, cb.rect.top - 18.0f, 200.0f, cb.rect.top - 2.0f),
                 m_pBrushTextMuted
             );
         } else if (cb.settingName == L"WarmTint" && !cb.label.empty()) {
             m_pRenderTarget->DrawText(
-                L"SCREEN DISPLAY", 13, m_pTextFormatDetail,
+                L"SCREEN DISPLAY", 14, m_pTextFormatDetail,
                 D2D1::RectF(25.0f, cb.rect.top - 18.0f, 200.0f, cb.rect.top - 2.0f),
                 m_pBrushTextMuted
             );
@@ -630,8 +635,8 @@ void MainWindow::OnPaint() {
         m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
     );
     m_pRenderTarget->DrawText(
-        L"Apps", 4, m_pTextFormatDetail,
-        D2D1::RectF(ax + 17, ay, ax + 60, ay + 16),
+        L"Bypass Apps", 10, m_pTextFormatDetail,
+        D2D1::RectF(ax + 17, ay, ax + 80, ay + 16),
         m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
     );
 
@@ -646,7 +651,7 @@ void MainWindow::OnPaint() {
 
         float headerY = (float)m_blockedPanelRect.top + 12.0f;
         m_pRenderTarget->DrawText(
-            L"APPS", 4, m_pTextFormatDetail,
+            L"BYPASS APPS", 10, m_pTextFormatDetail,
             D2D1::RectF(m_blockedPanelRect.left + 12, headerY,
                         m_blockedPanelRect.right - 10, headerY + 18),
             m_pBrushTextMuted
