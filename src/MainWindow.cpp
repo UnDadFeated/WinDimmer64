@@ -427,7 +427,7 @@ void MainWindow::UpdateLayout() {
         m_blockedContentHeight = itemY - panelTop;
     }
 
-    m_windowWidth = m_blockedExpanded ? (CONTENT_WIDTH + 10 + PANEL_WIDTH) : CONTENT_WIDTH;
+    m_windowWidth = m_blockedExpanded ? (CONTENT_WIDTH + 10 + PANEL_WIDTH + 10) : CONTENT_WIDTH;
 
     RECT rc = { 0, 0, m_windowWidth, m_windowHeight };
     AdjustWindowRectEx(&rc, GetWindowLongW(m_hwnd, GWL_STYLE), FALSE, GetWindowLongW(m_hwnd, GWL_EXSTYLE));
