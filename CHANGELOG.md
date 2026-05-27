@@ -2,6 +2,11 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.2.7] - 2026-05-27
+
+### Updates
+* **Cursor dimming removed**: Replaced `SetSystemCursor`/`CreateDimmedCursor` (which triggered Windows Defender blocks on signed systems) with simple `ShowCursor(FALSE)` when the screen dims during idle. Cursor reappears automatically on any mouse/keyboard input. Cleaner, safer, no security flags.
+
 ## [1.2.6] - 2026-05-27
 
 ### Bug Fixes

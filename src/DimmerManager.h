@@ -4,16 +4,6 @@
 #include <vector>
 #include <map>
 
-#ifndef OCR_NORMAL
-#define OCR_NORMAL 32512
-#endif
-#ifndef OCR_IBEAM
-#define OCR_IBEAM 32513
-#endif
-#ifndef OCR_HAND
-#define OCR_HAND 32649
-#endif
-
 struct ActiveMonitorInfo {
     std::wstring id;
     std::wstring friendlyName;
@@ -62,8 +52,6 @@ private:
     void CreateOverlayForMonitor(ActiveMonitorInfo& info);
     static LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 
-    static HCURSOR CreateDimmedCursor(HCURSOR hOriginal);
-
     HINSTANCE m_hInst = nullptr;
     std::vector<ActiveMonitorInfo> m_monitors;
     bool m_showBoundaries = false;
@@ -74,7 +62,7 @@ private:
     bool m_dimmingEnabled = false;
     bool m_classRegistered = false;
 
-    bool m_cursorDimmed = false;
+    bool m_cursorHidden = false;
     bool m_videoDetected = false;
     std::vector<std::wstring> m_blockedApps;
 };
