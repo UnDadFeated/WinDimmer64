@@ -166,26 +166,24 @@ void DimmerManager::SetDimmingEnabled(bool enabled) {
 }
 
 void DimmerManager::UpdateCursorDimming() {
-    int dimLevel = 0;
-    if (m_dimmingEnabled) {
-        for (const auto& mon : m_monitors) {
-            if (mon.enabled && mon.dimValue > dimLevel)
-                dimLevel = mon.dimValue;
-        }
-    }
-    if (m_isIdleState && m_idleDimLevel > dimLevel)
-        dimLevel = m_idleDimLevel;
-
-    if (m_videoDetected)
-        dimLevel = 0;
-
-    bool shouldHide = dimLevel >= 5;
+    bool shouldHide = m_isIdleState && (m_idleDimLevel >= 5) && !m_videoDetected;
 
     if (shouldHide && !m_cursorHidden) {
-        ShowCursor(FALSE);
+        int w = GetSystemMetrics(SM_CXCURSOR);
+        int h = GetSystemMetrics(SM_CYCURSOR);
+        std::vector<BYTE> ANDmask(w * h / 8, 0xFF);
+        std::vector<BYTE> XORmask(w * h / 8, 0x00);
+
+        const DWORD cursorIds[] = { 32512, 32513, 32649 }; // OCR_NORMAL, OCR_IBEAM, OCR_HAND
+        for (DWORD id : cursorIds) {
+            HCURSOR hBlank = CreateCursor(nullptr, 0, 0, w, h, ANDmask.data(), XORmask.data());
+            if (hBlank) {
+                SetSystemCursor(hBlank, id);
+            }
+        }
         m_cursorHidden = true;
     } else if (!shouldHide && m_cursorHidden) {
-        ShowCursor(TRUE);
+        SystemParametersInfoW(SPI_SETCURSORS, 0, nullptr, 0);
         m_cursorHidden = false;
     }
 }
@@ -298,7 +296,7 @@ void DimmerManager::DestroyOverlays() {
 DimmerManager::~DimmerManager() {
     DestroyOverlays();
     if (m_cursorHidden) {
-        ShowCursor(TRUE);
+        SystemParametersInfoW(SPI_SETCURSORS, 0, nullptr, 0);
     }
     if (m_classRegistered) {
         UnregisterClassW(L"WinDimmer64OverlayClass", m_hInst);

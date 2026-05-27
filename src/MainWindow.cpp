@@ -765,12 +765,12 @@ void MainWindow::OnPaint() {
     wchar_t versionFull[64] = { 0 };
     if (m_updateChecked) {
         if (m_updateAvailable) {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.2.7");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.2.8");
         } else {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.2.7");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.2.8");
         }
     } else {
-        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.2.7");
+        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.2.8");
     }
     m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
     m_pRenderTarget->DrawText(
@@ -943,7 +943,7 @@ DWORD WINAPI MainWindow::CheckForUpdatesThread(LPVOID lpParam) {
                                             MultiByteToWideChar(CP_UTF8, 0, tag, len, ver, 32);
                                             self->m_latestVersion = ver;
                                             // Compare "1.0.9" with retrieved version
-                                            if (wcscmp(ver, L"1.2.7") > 0)
+                                            if (wcscmp(ver, L"1.2.8") > 0)
                                                 self->m_updateAvailable = true;
                                         }
                                     }
@@ -1530,6 +1530,15 @@ LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                     if (self->m_config.masterValue < 0) self->m_config.masterValue = 0;
                     if (self->m_config.masterValue > 90) self->m_config.masterValue = 90;
 
+                    // If active dimming is off, auto-enable it so the hotkey takes effect immediately!
+                    if (!self->m_config.dimmingEnabled) {
+                        self->m_config.dimmingEnabled = true;
+                        DimmerManager::Instance().SetDimmingEnabled(true);
+                        for (auto& cb : self->m_checkboxes) {
+                            if (cb.settingName == L"DimmingEnabled") { cb.checked = true; break; }
+                        }
+                    }
+
                     for (const auto& mon : DimmerManager::Instance().GetActiveMonitors()) {
                         DimmerManager::Instance().SetMonitorDim(mon.id, self->m_config.masterValue);
                     }
@@ -1537,7 +1546,9 @@ LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
                         monConf.value = self->m_config.masterValue;
                     }
                     for (auto& sl : self->m_sliders) {
-                        sl.value = self->m_config.masterValue / 90.0f;
+                        if (!sl.isIdleMinutes && !sl.isIdleDimLevel) {
+                            sl.value = self->m_config.masterValue / 90.0f;
+                        }
                     }
                     DimmerManager::Instance().UpdateCursorDimming();
                     self->SaveSettings();

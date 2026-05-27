@@ -2,6 +2,14 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.2.8] - 2026-05-27
+
+### Bug Fixes
+* **Global Cursor Hiding on Idle**: Replaced the local thread-restricted `ShowCursor(FALSE)` call with a clean, antivirus-friendly system-wide `SetSystemCursor` using a statically created blank cursor when screens are dimmed during idle. Original cursors are instantly restored globally via `SPI_SETCURSORS` upon waking up or application exit.
+* **Hotkey Active Dimming Auto-Enable**: Adjusting display brightness via global hotkeys (`Ctrl+Alt+ArrowUp/ArrowDown`) now auto-enables active dimming if it was off, so changes take effect immediately.
+* **Hotkey Idle Slider Corruption**: Fixed a layout bug where global brightness hotkeys incorrectly reset the inactivity timeout and dim level slider visual values on the settings panel.
+* **Installer Directory Pre-creation**: Resolved a bug where launching the installer pre-emptively created an empty `%LOCALAPPDATA%\WinDimmer64` directory before the user clicked "Install".
+
 ## [1.2.7] - 2026-05-27
 
 ### Updates

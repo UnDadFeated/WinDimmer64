@@ -20,7 +20,7 @@
 static const wchar_t* APP_NAME = L"WinDimmer64";
 static const wchar_t* INSTALL_DIR = L"WinDimmer64";
 static const wchar_t* REG_PATH = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WinDimmer64";
-static const wchar_t* VER = L"1.2.7";
+static const wchar_t* VER = L"1.2.8";
 
 enum State { READY, INSTALLING, COMPLETE };
 static State g_state = READY;
@@ -32,7 +32,6 @@ static void GetInstallPath(wchar_t* buf, DWORD size) {
     GetEnvironmentVariableW(L"LOCALAPPDATA", buf, size);
     wcscat_s(buf, size, L"\\");
     wcscat_s(buf, size, INSTALL_DIR);
-    CreateDirectoryW(buf, NULL);
 }
 
 static bool IsRunning() {
