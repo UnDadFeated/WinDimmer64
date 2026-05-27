@@ -29,6 +29,18 @@ struct AppConfig {
     bool dimmingEnabled = false; // Default to false so it does NOT dim on startup!
     bool groupDim = true;
     std::vector<MonitorConfig> monitors;
+    std::vector<std::wstring> blockedApps;
+    AppConfig() {
+        blockedApps = {
+            L"chrome.exe", L"msedge.exe", L"firefox.exe", L"opera.exe", L"brave.exe",
+            L"vlc.exe", L"mpc-hc.exe", L"mpc-hc64.exe", L"mpc-be.exe", L"mpc-be64.exe",
+            L"potplayer.exe", L"wmplayer.exe", L"groove.exe", L"Plex.exe", L"PlexScriptHost.exe",
+            L"kodi.exe", L"mpv.exe", L"mpv.net.exe", L"netflix.exe", L"screenbox.exe",
+            L"kmplayer.exe", L"kmp.exe", L"gom.exe", L"smplayer.exe",
+            L"zoom.exe", L"teams.exe", L"whatsapp.exe", L"slack.exe",
+            L"Spotify.exe", L"Discord.exe"
+        };
+    }
 };
 
 class ConfigManager {

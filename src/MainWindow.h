@@ -29,6 +29,13 @@ struct UICheckbox {
     std::wstring label;
 };
 
+struct UIBlockedAppItem {
+    std::wstring name;
+    RECT textRect;
+    RECT removeRect;
+    bool hoveredRemove = false;
+};
+
 class MainWindow {
 public:
     static MainWindow& Instance() {
@@ -113,4 +120,15 @@ private:
     std::wstring m_latestVersion;
     static DWORD WINAPI CheckForUpdatesThread(LPVOID lpParam);
     void OnUpdateCheckComplete();
+
+    // Blocked apps UI
+    bool m_blockedExpanded = true;
+    RECT m_blockedCardRect = { 0 };
+    RECT m_blockedArrowRect = { 0 };
+    RECT m_blockedAddRect = { 0 };
+    std::vector<UIBlockedAppItem> m_blockedItems;
+    bool m_blockedArrowHovered = false;
+    bool m_blockedAddHovered = false;
+    void ShowAddAppDialog();
+    void Repaint() { InvalidateRect(m_hwnd, nullptr, FALSE); }
 };

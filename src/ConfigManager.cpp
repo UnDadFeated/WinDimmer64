@@ -77,6 +77,24 @@ AppConfig ConfigManager::LoadConfig(const std::wstring& filePath) {
     if (findValue(L"DimmingEnabled", val)) config.dimmingEnabled = ParseBool(val);
     if (findValue(L"GroupDim", val)) config.groupDim = ParseBool(val);
 
+    // Parse BlockedApps array
+    size_t blockedPos = content.find(L"\"BlockedApps\"");
+    if (blockedPos != std::wstring::npos) {
+        size_t arrStart = content.find(L"[", blockedPos);
+        size_t arrEnd = content.find(L"]", blockedPos);
+        if (arrStart != std::wstring::npos && arrEnd != std::wstring::npos && arrEnd > arrStart) {
+            std::wstring arrContent = content.substr(arrStart + 1, arrEnd - arrStart - 1);
+            size_t q = 0;
+            config.blockedApps.clear();
+            while ((q = arrContent.find(L'"', q)) != std::wstring::npos) {
+                size_t q2 = arrContent.find(L'"', q + 1);
+                if (q2 == std::wstring::npos) break;
+                config.blockedApps.push_back(arrContent.substr(q + 1, q2 - q - 1));
+                q = q2 + 1;
+            }
+        }
+    }
+
     // Parse Monitors array
     size_t monitorsPos = content.find(L"\"Monitors\"");
     if (monitorsPos != std::wstring::npos) {
@@ -136,6 +154,14 @@ void ConfigManager::SaveConfig(const std::wstring& filePath, const AppConfig& co
     file << L"  \"LightMode\": " << (config.lightMode ? L"true" : L"false") << L",\n";
     file << L"  \"DimmingEnabled\": " << (config.dimmingEnabled ? L"true" : L"false") << L",\n";
     file << L"  \"GroupDim\": " << (config.groupDim ? L"true" : L"false") << L",\n";
+
+    file << L"  \"BlockedApps\": [";
+    for (size_t i = 0; i < config.blockedApps.size(); ++i) {
+        if (i > 0) file << L", ";
+        file << L"\"" << config.blockedApps[i] << L"\"";
+    }
+    file << L"],\n";
+
     file << L"  \"Monitors\": [\n";
 
     for (size_t i = 0; i < config.monitors.size(); ++i) {

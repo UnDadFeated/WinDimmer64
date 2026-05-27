@@ -45,6 +45,7 @@ public:
     bool IsDimmingEnabled() const { return m_dimmingEnabled; }
     void UpdateCursorDimming();
     void CheckVideoPlayback();
+    void SetBlockedApps(const std::vector<std::wstring>& apps);
     bool IsVideoDetected() const { return m_videoDetected; }
 
 private:
@@ -69,4 +70,5 @@ private:
     HCURSOR m_hOriginalArrow = nullptr;
     bool m_cursorDimmed = false;
     bool m_videoDetected = false;
+    std::vector<std::wstring> m_blockedApps;
 };

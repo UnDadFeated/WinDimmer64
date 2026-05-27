@@ -2,6 +2,11 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.2.0] - 2026-05-27
+
+### New Features
+* **Blocked Apps**: Replaced the hardcoded media player list with a configurable blocklist. Added a collapsible BLOCKED APPS card on the settings panel with an expansion arrow. Users can add and remove apps freely — dimming pauses whenever a blocked app is the foreground window. Pre-populated with all major media players and video chat apps.
+
 ## [1.1.3] - 2026-05-27
 
 ### Updates

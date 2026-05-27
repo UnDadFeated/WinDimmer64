@@ -19,6 +19,42 @@
 #define ID_TRAY_EXIT 1001
 #define ID_TRAY_SHOW 1002
 
+// Add App dialog
+static const wchar_t* ADD_DLG_CLASS = L"WinDimmer64AddAppDlg";
+static bool g_addDlgRegistered = false;
+static wchar_t g_addDlgResult[128];
+static bool g_addDlgConfirmed;
+
+static LRESULT CALLBACK AddAppDlgProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
+    switch (msg) {
+        case WM_CREATE: {
+            HINSTANCE hInst = ((LPCREATESTRUCT)lp)->hInstance;
+            HWND hEdit = CreateWindowW(L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_BORDER | ES_AUTOHSCROLL, 12, 30, 240, 22, hwnd, (HMENU)100, hInst, NULL);
+            CreateWindowW(L"STATIC", L"Process name (e.g. chrome.exe):", WS_CHILD | WS_VISIBLE, 12, 12, 240, 14, hwnd, NULL, hInst, NULL);
+            CreateWindowW(L"BUTTON", L"Add", WS_CHILD | WS_VISIBLE | BS_DEFPUSHBUTTON | WS_TABSTOP, 82, 62, 64, 24, hwnd, (HMENU)IDOK, hInst, NULL);
+            CreateWindowW(L"BUTTON", L"Cancel", WS_CHILD | WS_VISIBLE | WS_TABSTOP, 154, 62, 64, 24, hwnd, (HMENU)IDCANCEL, hInst, NULL);
+            SendMessageW(hEdit, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
+            SetFocus(hEdit);
+            return 0;
+        }
+        case WM_COMMAND:
+            if (LOWORD(wp) == IDOK) {
+                g_addDlgResult[0] = 0;
+                GetDlgItemTextW(hwnd, 100, g_addDlgResult, 128);
+                size_t len = wcslen(g_addDlgResult);
+                while (len > 0 && g_addDlgResult[len - 1] == L' ') g_addDlgResult[--len] = 0;
+                if (len > 0) { g_addDlgConfirmed = true; DestroyWindow(hwnd); }
+            } else if (LOWORD(wp) == IDCANCEL) {
+                DestroyWindow(hwnd);
+            }
+            return 0;
+        case WM_CLOSE:
+            DestroyWindow(hwnd);
+            return 0;
+    }
+    return DefWindowProcW(hwnd, msg, wp, lp);
+}
+
 static bool AddTrayIcon(HWND hwnd, UINT uID, HICON hIcon, const wchar_t* tip) {
     NOTIFYICONDATAW nid = { 0 };
     nid.cbSize = sizeof(nid);
@@ -321,6 +357,36 @@ void MainWindow::UpdateLayout() {
     AddCheckbox(L"StartWithWindows", m_config.startWithWindows, &m_config.startWithWindows, L"Start with Windows", 1, yOffset);
     yOffset += 22;
 
+    // ── BLOCKED APPS CARD ──
+    yOffset += 8;
+    int cardLeft = 20;
+    int cardRight = m_windowWidth - 35;
+    int cardWidth = cardRight - cardLeft;
+    int headerY = yOffset;
+
+    m_blockedArrowRect = { cardLeft + 12, headerY + 8, cardLeft + 30, headerY + 28 };
+    m_blockedAddRect = { cardRight - 80, headerY + 8, cardRight - 12, headerY + 28 };
+
+    yOffset = headerY + 36;
+
+    m_blockedItems.clear();
+    if (m_blockedExpanded) {
+        yOffset += 2;
+        for (const auto& app : m_config.blockedApps) {
+            UIBlockedAppItem item;
+            item.name = app;
+            item.textRect = { cardLeft + 20, yOffset, cardRight - 55, yOffset + 22 };
+            item.removeRect = { cardRight - 42, yOffset + 2, cardRight - 18, yOffset + 20 };
+            m_blockedItems.push_back(item);
+            yOffset += 24;
+        }
+        yOffset += 6;
+    } else {
+        yOffset += 6;
+    }
+
+    m_blockedCardRect = { cardLeft, headerY, cardRight, yOffset };
+
     if (m_config.idleDimEnabled) {
         // Inactivity Minutes Slider Card
         UISlider idleMin;
@@ -552,6 +618,62 @@ void MainWindow::OnPaint() {
         }
     }
 
+    // ── BLOCKED APPS CARD ──
+    if (m_blockedCardRect.bottom > m_blockedCardRect.top) {
+        D2D1_ROUNDED_RECT cardRect = D2D1::RoundedRect(
+            D2D1::RectF(m_blockedCardRect.left, m_blockedCardRect.top, m_blockedCardRect.right, m_blockedCardRect.bottom),
+            8.0f, 8.0f
+        );
+        m_pRenderTarget->FillRoundedRectangle(cardRect, m_pBrushCard);
+        m_pRenderTarget->DrawRoundedRectangle(cardRect, m_pBrushCardBorder, 1.2f);
+
+        float arrowX = m_blockedArrowRect.left + 2.0f;
+        float arrowY = m_blockedArrowRect.top + 2.0f;
+        m_pRenderTarget->DrawText(
+            m_blockedExpanded ? L"\u25BC" : L"\u25B6", 1, m_pTextFormatDetail,
+            D2D1::RectF(arrowX, arrowY, arrowX + 16, arrowY + 16),
+            m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
+        );
+
+        m_pRenderTarget->DrawText(
+            L"BLOCKED APPS", 12, m_pTextFormatDetail,
+            D2D1::RectF(arrowX + 18, arrowY, arrowX + 150, arrowY + 16),
+            m_pBrushTextMuted
+        );
+
+        float addX = m_blockedAddRect.left;
+        float addY = m_blockedAddRect.top + 1;
+        m_pRenderTarget->DrawText(
+            L"[+ Add]", 6, m_pTextFormatDetail,
+            D2D1::RectF(addX, addY, addX + 60, addY + 16),
+            m_blockedAddHovered ? m_pBrushAccent : m_pBrushText
+        );
+
+        if (m_blockedExpanded) {
+            float sepY = m_blockedArrowRect.top + 30;
+            m_pRenderTarget->DrawLine(
+                D2D1::Point2F(m_blockedCardRect.left + 12, sepY),
+                D2D1::Point2F(m_blockedCardRect.right - 12, sepY),
+                m_pBrushCardBorder, 1.0f
+            );
+
+            for (const auto& item : m_blockedItems) {
+                m_pRenderTarget->DrawText(
+                    item.name.c_str(), (UINT32)item.name.length(), m_pTextFormatBody,
+                    D2D1::RectF(item.textRect.left, item.textRect.top, item.textRect.right, item.textRect.bottom),
+                    m_pBrushText
+                );
+                float rx = item.removeRect.left + 3;
+                float ry = item.removeRect.top + 1;
+                m_pRenderTarget->DrawText(
+                    L"\u2715", 1, m_pTextFormatDetail,
+                    D2D1::RectF(rx, ry, rx + 16, ry + 16),
+                    item.hoveredRemove ? m_pBrushAccent : m_pBrushTextMuted
+                );
+            }
+        }
+    }
+
     // Technical Separator Line before Footer Metadata
     float footerY = static_cast<float>(m_windowHeight - 35);
     m_pRenderTarget->DrawLine(
@@ -605,12 +727,12 @@ void MainWindow::OnPaint() {
     wchar_t versionFull[64] = { 0 };
     if (m_updateChecked) {
         if (m_updateAvailable) {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.1.3");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.2.0");
         } else {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.1.3");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.2.0");
         }
     } else {
-        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.1.3");
+        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.2.0");
     }
     m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
     m_pRenderTarget->DrawText(
@@ -723,6 +845,21 @@ void MainWindow::HandleMouseMove(int x, int y) {
         }
     }
 
+    // Blocked apps hover
+    bool wasArrowHover = m_blockedArrowHovered;
+    m_blockedArrowHovered = (x >= m_blockedArrowRect.left && x <= m_blockedArrowRect.right && y >= m_blockedArrowRect.top && y <= m_blockedArrowRect.bottom);
+    if (m_blockedArrowHovered != wasArrowHover) needsRepaint = true;
+
+    bool wasAddHover = m_blockedAddHovered;
+    m_blockedAddHovered = (x >= m_blockedAddRect.left && x <= m_blockedAddRect.right && y >= m_blockedAddRect.top && y <= m_blockedAddRect.bottom);
+    if (m_blockedAddHovered != wasAddHover) needsRepaint = true;
+
+    for (auto& item : m_blockedItems) {
+        bool wasHover = item.hoveredRemove;
+        item.hoveredRemove = (x >= item.removeRect.left && x <= item.removeRect.right && y >= item.removeRect.top && y <= item.removeRect.bottom);
+        if (item.hoveredRemove != wasHover) needsRepaint = true;
+    }
+
     if (needsRepaint) {
         InvalidateRect(m_hwnd, nullptr, FALSE);
     }
@@ -765,7 +902,7 @@ DWORD WINAPI MainWindow::CheckForUpdatesThread(LPVOID lpParam) {
                                             MultiByteToWideChar(CP_UTF8, 0, tag, len, ver, 32);
                                             self->m_latestVersion = ver;
                                             // Compare "1.0.9" with retrieved version
-                                            if (wcscmp(ver, L"1.1.3") > 0)
+                                            if (wcscmp(ver, L"1.2.0") > 0)
                                                 self->m_updateAvailable = true;
                                         }
                                     }
@@ -813,6 +950,7 @@ void MainWindow::HandleLButtonDown(int x, int y) {
         DimmerManager::Instance().SetWarmTint(m_config.warmTint);
         DimmerManager::Instance().SetFocusMode(m_config.focusMode);
         DimmerManager::Instance().SetShowBoundaries(m_config.showBoundaries);
+        DimmerManager::Instance().SetBlockedApps(m_config.blockedApps);
         if (!m_config.idleDimEnabled) {
             DimmerManager::Instance().SetIdleState(false);
         }
@@ -826,6 +964,30 @@ void MainWindow::HandleLButtonDown(int x, int y) {
         SaveSettings();
         InvalidateRect(m_hwnd, nullptr, FALSE);
         return;
+    }
+
+    // Blocked apps interactions
+    if (x >= m_blockedArrowRect.left && x <= m_blockedArrowRect.right && y >= m_blockedArrowRect.top && y <= m_blockedArrowRect.bottom) {
+        m_blockedExpanded = !m_blockedExpanded;
+        UpdateLayout();
+        Repaint();
+        return;
+    }
+    if (m_blockedExpanded && x >= m_blockedAddRect.left && x <= m_blockedAddRect.right && y >= m_blockedAddRect.top && y <= m_blockedAddRect.bottom) {
+        ShowAddAppDialog();
+        return;
+    }
+    if (m_blockedExpanded) {
+        for (size_t i = 0; i < m_blockedItems.size(); ++i) {
+            if (x >= m_blockedItems[i].removeRect.left && x <= m_blockedItems[i].removeRect.right && y >= m_blockedItems[i].removeRect.top && y <= m_blockedItems[i].removeRect.bottom) {
+                m_config.blockedApps.erase(m_config.blockedApps.begin() + i);
+                DimmerManager::Instance().SetBlockedApps(m_config.blockedApps);
+                UpdateLayout();
+                SaveSettings();
+                Repaint();
+                return;
+            }
+        }
     }
 
     for (auto& slider : m_sliders) {
@@ -1140,10 +1302,60 @@ void MainWindow::HandleKeyDown(WPARAM key) {
 
 void MainWindow::LoadSettings() {
     m_config = ConfigManager::LoadConfig(ConfigManager::GetConfigPath());
+    DimmerManager::Instance().SetBlockedApps(m_config.blockedApps);
 }
 
 void MainWindow::SaveSettings() {
     ConfigManager::SaveConfig(ConfigManager::GetConfigPath(), m_config);
+}
+
+void MainWindow::ShowAddAppDialog() {
+    if (!g_addDlgRegistered) {
+        WNDCLASSEXW wc = { sizeof(WNDCLASSEXW) };
+        wc.lpfnWndProc = AddAppDlgProc;
+        wc.hInstance = m_hInst;
+        wc.hCursor = LoadCursor(NULL, IDC_ARROW);
+        wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+        wc.lpszClassName = ADD_DLG_CLASS;
+        RegisterClassExW(&wc);
+        g_addDlgRegistered = true;
+    }
+
+    g_addDlgConfirmed = false;
+    g_addDlgResult[0] = 0;
+
+    HWND hDlg = CreateWindowExW(WS_EX_DLGMODALFRAME, ADD_DLG_CLASS, L"Add Blocked App",
+        WS_CAPTION | WS_SYSMENU | WS_VISIBLE,
+        CW_USEDEFAULT, CW_USEDEFAULT, 270, 105,
+        m_hwnd, NULL, m_hInst, NULL);
+
+    if (hDlg) {
+        EnableWindow(m_hwnd, FALSE);
+        MSG msg;
+        while (IsWindow(hDlg) && GetMessageW(&msg, NULL, 0, 0)) {
+            TranslateMessage(&msg);
+            DispatchMessageW(&msg);
+        }
+        EnableWindow(m_hwnd, TRUE);
+        SetForegroundWindow(m_hwnd);
+
+        if (g_addDlgConfirmed && g_addDlgResult[0]) {
+            std::wstring name = g_addDlgResult;
+            CharLowerW(&name[0]);
+            if (name.find(L'.') == std::wstring::npos) name += L".exe";
+            bool dup = false;
+            for (const auto& app : m_config.blockedApps) {
+                if (lstrcmpiW(app.c_str(), name.c_str()) == 0) { dup = true; break; }
+            }
+            if (!dup) {
+                m_config.blockedApps.push_back(name);
+                DimmerManager::Instance().SetBlockedApps(m_config.blockedApps);
+                UpdateLayout();
+                SaveSettings();
+                Repaint();
+            }
+        }
+    }
 }
 
 void MainWindow::SyncMonitorsWithConfig() {
