@@ -2,6 +2,11 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.0.8] - 2026-05-27
+
+### Updates
+* **Footer Undo**: Moved "Undo Changes" into the app footer, centered between the status indicator and version number. Removed the Undo checkbox row from the APPLICATION section, eliminating wasted space.
+
 ## [1.0.7] - 2026-05-27
 
 ### Updates

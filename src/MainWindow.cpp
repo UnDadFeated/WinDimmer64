@@ -235,7 +235,7 @@ void MainWindow::UpdateLayout() {
         mcb.settingName = L"MasterEnabled";
         mcb.checked = m_config.masterEnabled;
         mcb.pValue = &m_config.masterEnabled;
-        mcb.label = L""; // Master uses standard title text
+        mcb.label = L"";
         mcb.rect.left = master.rect.left + 12;
         mcb.rect.top = master.rect.top + 12;
         mcb.rect.right = mcb.rect.left + 34;
@@ -262,7 +262,7 @@ void MainWindow::UpdateLayout() {
         UICheckbox cb;
         cb.monitorId = mon.id;
         cb.checked = mon.enabled;
-        cb.pValue = nullptr; // Mon enables are handled via individual loop logic
+        cb.pValue = nullptr;
         cb.label = L"";
         cb.rect.left = slider.rect.left + 12;
         cb.rect.top = slider.rect.top + 12;
@@ -316,19 +316,6 @@ void MainWindow::UpdateLayout() {
     AddCheckbox(L"StartWithWindows", m_config.startWithWindows, &m_config.startWithWindows, L"Start with Windows", 1, yOffset);
     yOffset += 22;
 
-    // Undo entry (action, not a toggle)
-    {
-        UICheckbox cb;
-        cb.settingName = L"Undo";
-        cb.label = L"Undo Changes";
-        cb.rect.left = 25;
-        cb.rect.top = yOffset;
-        cb.rect.right = 25 + 34;
-        cb.rect.bottom = yOffset + 18;
-        m_checkboxes.push_back(cb);
-    }
-    yOffset += 22;
-
     if (m_config.idleDimEnabled) {
         // Inactivity Minutes Slider Card
         UISlider idleMin;
@@ -357,6 +344,12 @@ void MainWindow::UpdateLayout() {
 
     // Calculate required window height dynamically
     m_windowHeight = yOffset + 42;
+
+    // Footer undo rect (centered in footer area)
+    m_undoRect.left = m_windowWidth / 2 - 70;
+    m_undoRect.top = m_windowHeight - 25;
+    m_undoRect.right = m_windowWidth / 2 + 70;
+    m_undoRect.bottom = m_windowHeight;
     
     RECT rc = { 0, 0, m_windowWidth, m_windowHeight };
     AdjustWindowRectEx(&rc, GetWindowLongW(m_hwnd, GWL_STYLE), FALSE, GetWindowLongW(m_hwnd, GWL_EXSTYLE));
@@ -522,23 +515,6 @@ void MainWindow::OnPaint() {
 
     // Render high-tech sliding toggle switches
     for (const auto& cb : m_checkboxes) {
-        if (cb.settingName == L"Undo") {
-            // Undo is an action button, not a toggle
-            wchar_t undoLabel[32] = { 0 };
-            if (m_changeCount > 0) {
-                StringCchPrintfW(undoLabel, ARRAYSIZE(undoLabel), L"Undo (%d)", m_changeCount);
-            } else {
-                StringCchCopyW(undoLabel, ARRAYSIZE(undoLabel), L"Undo Changes");
-            }
-            m_pRenderTarget->DrawText(
-                undoLabel, static_cast<UINT32>(wcslen(undoLabel)),
-                m_pTextFormatDetail,
-                D2D1::RectF(cb.rect.right + 10.0f, cb.rect.top + 1.0f, m_windowWidth - 20.0f, cb.rect.bottom + 15.0f),
-                m_canUndo ? m_pBrushAccent : m_pBrushTextMuted
-            );
-            continue;
-        }
-
         D2D1_ROUNDED_RECT switchTrack = D2D1::RoundedRect(
             D2D1::RectF(cb.rect.left, cb.rect.top, cb.rect.right, cb.rect.bottom),
             9.0f, 9.0f
@@ -572,7 +548,7 @@ void MainWindow::OnPaint() {
     }
 
     // Technical Separator Line before Footer Metadata
-    float footerY = m_windowHeight - 35.0f;
+    float footerY = static_cast<float>(m_windowHeight - 35);
     m_pRenderTarget->DrawLine(
         D2D1::Point2F(20.0f, footerY),
         D2D1::Point2F(m_windowWidth - 35.0f, footerY),
@@ -604,8 +580,22 @@ void MainWindow::OnPaint() {
         anyDimmerActive ? m_pBrushAccent : m_pBrushTextMuted
     );
 
+    // Undo Changes centered in footer
+    wchar_t undoLabel[32] = { 0 };
+    if (m_changeCount > 0) {
+        StringCchPrintfW(undoLabel, ARRAYSIZE(undoLabel), L"Undo (%d)", m_changeCount);
+    } else {
+        StringCchCopyW(undoLabel, ARRAYSIZE(undoLabel), L"Undo Changes");
+    }
+    m_pRenderTarget->DrawText(
+        undoLabel, static_cast<UINT32>(wcslen(undoLabel)),
+        m_pTextFormatDetail,
+        D2D1::RectF(m_undoRect.left, footerY + 10.0f, m_undoRect.right, footerY + 28.0f),
+        m_canUndo ? m_pBrushAccent : m_pBrushTextMuted
+    );
+
     // Version Number in footer right
-    const wchar_t* versionStr = L"v1.0.7";
+    const wchar_t* versionStr = L"v1.0.8";
     m_pRenderTarget->DrawText(
         versionStr, 6,
         m_pTextFormatDetail,
@@ -727,6 +717,43 @@ void MainWindow::PushUndoState() {
 }
 
 void MainWindow::HandleLButtonDown(int x, int y) {
+    // Intercept Undo click in footer
+    if (m_canUndo && x >= m_undoRect.left && x <= m_undoRect.right && y >= m_undoRect.top && y <= m_undoRect.bottom) {
+        m_config = m_undoStack.back();
+        m_undoStack.pop_back();
+        m_canUndo = !m_undoStack.empty();
+        m_changeCount = static_cast<int>(m_undoStack.size());
+
+        SyncMonitorsWithConfig();
+
+        const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
+        for (const auto& mon : activeMons) {
+            for (const auto& savedMon : m_config.monitors) {
+                if (savedMon.id == mon.id) {
+                    DimmerManager::Instance().SetMonitorDim(mon.id, savedMon.value);
+                    DimmerManager::Instance().SetMonitorEnabled(mon.id, savedMon.enabled);
+                    break;
+                }
+            }
+        }
+        DimmerManager::Instance().SetWarmTint(m_config.warmTint);
+        DimmerManager::Instance().SetFocusMode(m_config.focusMode);
+        DimmerManager::Instance().SetShowBoundaries(m_config.showBoundaries);
+        if (!m_config.idleDimEnabled) {
+            DimmerManager::Instance().SetIdleState(false);
+        }
+        DimmerManager::Instance().SetDimmingEnabled(m_config.dimmingEnabled);
+
+        BOOL useDark = !m_config.lightMode;
+        DwmSetWindowAttribute(m_hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+        SetWindowPos(m_hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+
+        UpdateLayout();
+        SaveSettings();
+        InvalidateRect(m_hwnd, nullptr, FALSE);
+        return;
+    }
+
     for (auto& slider : m_sliders) {
         float trackLeft = slider.rect.left + 20.0f;
         float trackRight = slider.rect.right - 20.0f;
@@ -815,41 +842,6 @@ void MainWindow::HandleLButtonDown(int x, int y) {
                 }
             } else if (cb.settingName == L"CloseToTray") {
                 // Handled dynamically
-            } else if (cb.settingName == L"Undo") {
-                if (m_canUndo) {
-                    m_config = m_undoStack.back();
-                    m_undoStack.pop_back();
-                    m_canUndo = !m_undoStack.empty();
-                    m_changeCount = static_cast<int>(m_undoStack.size());
-
-                    SyncMonitorsWithConfig();
-
-                    const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
-                    for (const auto& mon : activeMons) {
-                        for (const auto& savedMon : m_config.monitors) {
-                            if (savedMon.id == mon.id) {
-                                DimmerManager::Instance().SetMonitorDim(mon.id, savedMon.value);
-                                DimmerManager::Instance().SetMonitorEnabled(mon.id, savedMon.enabled);
-                                break;
-                            }
-                        }
-                    }
-                    DimmerManager::Instance().SetWarmTint(m_config.warmTint);
-                    DimmerManager::Instance().SetFocusMode(m_config.focusMode);
-                    DimmerManager::Instance().SetShowBoundaries(m_config.showBoundaries);
-                    if (!m_config.idleDimEnabled) {
-                        DimmerManager::Instance().SetIdleState(false);
-                    }
-                    DimmerManager::Instance().SetDimmingEnabled(m_config.dimmingEnabled);
-
-                    BOOL useDark = !m_config.lightMode;
-                    DwmSetWindowAttribute(m_hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
-                    SetWindowPos(m_hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-
-                    UpdateLayout();
-                    SaveSettings();
-                    InvalidateRect(m_hwnd, nullptr, FALSE);
-                }
             } else if (cb.settingName == L"ShowBoundaries") {
                 DimmerManager::Instance().SetShowBoundaries(cb.checked);
             } else if (cb.settingName == L"StartWithWindows") {
