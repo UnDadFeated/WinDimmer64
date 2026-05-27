@@ -612,12 +612,14 @@ void MainWindow::OnPaint() {
     } else {
         StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.0.9");
     }
+    m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
     m_pRenderTarget->DrawText(
         versionFull, static_cast<UINT32>(wcslen(versionFull)),
         m_pTextFormatDetail,
         D2D1::RectF(m_windowWidth - 170.0f, footerY + 10.0f, m_windowWidth - 25.0f, footerY + 28.0f),
         m_updateAvailable ? m_pBrushAccent : m_pBrushTextMuted
     );
+    m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
 
     HRESULT hr = m_pRenderTarget->EndDraw();
     if (hr == D2DERR_RECREATED) {
