@@ -1,0 +1,5 @@
+#include <windows.h>
+
+// Enable visual styles v6 & DPI awareness
+1 24 "manifest.xml"
+

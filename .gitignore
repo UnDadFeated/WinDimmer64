@@ -1,0 +1,19 @@
+# Developer/Agent instructions
+AGENTS.md
+
+# Build Artifacts
+WinDimmer64.exe
+*.o
+*.res
+*.obj
+*.pdb
+build/
+
+# Local User Configurations
+dimmer.ini
+
+# IDE Settings
+.vs/
+.vscode/
+*.user
+*.suo
