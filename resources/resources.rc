@@ -3,6 +3,9 @@
 // Enable visual styles v6 & DPI awareness
 1 24 "manifest.xml"
 
+// Application Icon
+101 ICON "app.ico"
+
 // Version Information
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION 1,0,4,0

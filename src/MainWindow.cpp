@@ -51,7 +51,7 @@ bool MainWindow::Create(HINSTANCE hInst, int nCmdShow) {
     wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground = nullptr;
     wc.lpszClassName = L"WinDimmer64MainClass";
-    wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+    wc.hIcon = LoadIconW(hInst, MAKEINTRESOURCEW(101));
     RegisterClassExW(&wc);
 
     // Initial position in center of screen
@@ -116,7 +116,8 @@ bool MainWindow::Create(HINSTANCE hInst, int nCmdShow) {
     SetTimer(m_hwnd, 202, 1000, nullptr);
 
     // Add to system tray
-    AddTrayIcon(m_hwnd, 1, LoadIcon(nullptr, IDI_APPLICATION), L"WinDimmer64 Screen Brightness");
+    HICON hAppIcon = LoadIconW(m_hInst, MAKEINTRESOURCEW(101));
+    AddTrayIcon(m_hwnd, 1, hAppIcon, L"WinDimmer64 Screen Brightness");
 
     UpdateLayout();
 
@@ -505,22 +506,6 @@ void MainWindow::OnPaint() {
                 m_pBrushTrack
             );
         }
-    }
-
-    // Dynamic structural layout separator above settings checklist
-    float settingsTop = 9999.0f;
-    for (const auto& cb : m_checkboxes) {
-        if (!cb.label.empty() && cb.rect.top < settingsTop) {
-            settingsTop = static_cast<float>(cb.rect.top);
-        }
-    }
-    if (settingsTop < 9999.0f) {
-        m_pRenderTarget->DrawLine(
-            D2D1::Point2F(20.0f, settingsTop - 12.0f),
-            D2D1::Point2F(m_windowWidth - 35.0f, settingsTop - 12.0f),
-            m_pBrushCardBorder,
-            1.0f
-        );
     }
 
     // Draw grouped section header labels above their first toggle
