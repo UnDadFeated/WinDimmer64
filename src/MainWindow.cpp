@@ -431,7 +431,19 @@ void MainWindow::UpdateLayout() {
 
     RECT rc = { 0, 0, m_windowWidth, m_windowHeight };
     AdjustWindowRectEx(&rc, GetWindowLongW(m_hwnd, GWL_STYLE), FALSE, GetWindowLongW(m_hwnd, GWL_EXSTYLE));
-    SetWindowPos(m_hwnd, nullptr, 0, 0, rc.right - rc.left, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+    int newW = rc.right - rc.left;
+    int newH = rc.bottom - rc.top;
+    RECT oldRc;
+    GetWindowRect(m_hwnd, &oldRc);
+    int newX = oldRc.left;
+    int newY = oldRc.top;
+    int screenW = GetSystemMetrics(SM_CXSCREEN);
+    int screenH = GetSystemMetrics(SM_CYSCREEN);
+    if (newX + newW > screenW) newX = screenW - newW;
+    if (newX < 0) newX = 0;
+    if (newY + newH > screenH) newY = screenH - newH;
+    if (newY < 0) newY = 0;
+    SetWindowPos(m_hwnd, nullptr, newX, newY, newW, newH, SWP_NOZORDER | SWP_NOACTIVATE);
 }
 
 void MainWindow::OnPaint() {
@@ -635,7 +647,7 @@ void MainWindow::OnPaint() {
         m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
     );
     m_pRenderTarget->DrawText(
-        L"Bypass Apps", 10, m_pTextFormatDetail,
+        L"Bypass App", 9, m_pTextFormatDetail,
         D2D1::RectF(ax + 17, ay, ax + 80, ay + 16),
         m_blockedArrowHovered ? m_pBrushAccent : m_pBrushTextMuted
     );
@@ -651,9 +663,9 @@ void MainWindow::OnPaint() {
 
         float headerY = (float)m_blockedPanelRect.top + 12.0f;
         m_pRenderTarget->DrawText(
-            L"BYPASS APPS", 10, m_pTextFormatDetail,
+            L"BYPASS APP", 9, m_pTextFormatDetail,
             D2D1::RectF(m_blockedPanelRect.left + 12, headerY,
-                        m_blockedPanelRect.right - 10, headerY + 18),
+                        m_blockedAddRect.right - 56, headerY + 18),
             m_pBrushTextMuted
         );
         m_pRenderTarget->DrawText(
