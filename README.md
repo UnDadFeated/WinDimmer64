@@ -13,6 +13,16 @@ Unlike the default Windows display options that only support physically turning 
 
 ---
 
+## Installation
+
+Download the latest installer from the [releases page](https://github.com/UnDadFeated/WinDimmer64/releases):
+
+**[WinDimmer64-Setup-v1.0.9.exe](https://github.com/UnDadFeated/WinDimmer64/releases/download/v1.0.9/WinDimmer64-Setup-v1.0.9.exe)**
+
+Run the installer — it will install WinDimmer64, create a Start Menu shortcut, and register with Settings > Apps & Features for clean uninstallation.
+
+---
+
 ## Key Features
 
 * **OLED Inactivity Power Saver (Idle Dimming)**: Detects system-wide inactivity using `GetLastInputInfo`. After a user-defined timeout (1 to 60 min), all displays smoothly fade to a selected Idle Dim Level (0% to 100% black overlay) to prevent OLED burn-in. Wakes up instantly on mouse or keyboard movement, bypassing slow hardware power-on delay cycles.
