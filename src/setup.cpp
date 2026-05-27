@@ -17,7 +17,7 @@
 static const wchar_t* APP_NAME = L"WinDimmer64";
 static const wchar_t* INSTALL_DIR = L"WinDimmer64";
 static const wchar_t* REG_PATH = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\WinDimmer64";
-static const wchar_t* VER = L"1.1.0";
+static const wchar_t* VER = L"1.1.1";
 
 enum State { READY, INSTALLING, COMPLETE };
 static State g_state = READY;
@@ -209,11 +209,15 @@ static LRESULT CALLBACK SetupWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
                         g_state = COMPLETE;
                     }
                 } else if (g_state == COMPLETE) {
-                    // Launch the app if checkbox is checked
                     if (SendMessageW(g_hLaunchCheck, BM_GETCHECK, 0, 0) == BST_CHECKED) {
                         wchar_t exePath[MAX_PATH];
                         swprintf(exePath, MAX_PATH, L"%s\\%s.exe", g_installPath, APP_NAME);
-                        ShellExecuteW(NULL, L"open", exePath, NULL, NULL, SW_SHOWNORMAL);
+                        Sleep(300); // let old mutex fully release
+                        STARTUPINFOW si = { sizeof(si) };
+                        PROCESS_INFORMATION pi;
+                        CreateProcessW(exePath, NULL, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi);
+                        CloseHandle(pi.hProcess);
+                        CloseHandle(pi.hThread);
                     }
                     PostMessageW(hwnd, WM_CLOSE, 0, 0);
                 }

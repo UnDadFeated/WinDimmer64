@@ -499,13 +499,13 @@ void MainWindow::OnPaint() {
     for (const auto& cb : m_checkboxes) {
         if (cb.settingName == L"DimmingEnabled" && !cb.label.empty()) {
             m_pRenderTarget->DrawText(
-                L"DIMMING", 7, m_pTextFormatDetail,
+                L"SCREEN DIMMING", 13, m_pTextFormatDetail,
                 D2D1::RectF(25.0f, cb.rect.top - 18.0f, 200.0f, cb.rect.top - 2.0f),
                 m_pBrushTextMuted
             );
         } else if (cb.settingName == L"WarmTint" && !cb.label.empty()) {
             m_pRenderTarget->DrawText(
-                L"DISPLAY", 7, m_pTextFormatDetail,
+                L"SCREEN DISPLAY", 13, m_pTextFormatDetail,
                 D2D1::RectF(25.0f, cb.rect.top - 18.0f, 200.0f, cb.rect.top - 2.0f),
                 m_pBrushTextMuted
             );
@@ -605,12 +605,12 @@ void MainWindow::OnPaint() {
     wchar_t versionFull[64] = { 0 };
     if (m_updateChecked) {
         if (m_updateAvailable) {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.1.0");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Update Available | v1.1.1");
         } else {
-            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.1.0");
+            StringCchPrintfW(versionFull, ARRAYSIZE(versionFull), L"Up to Date | v1.1.1");
         }
     } else {
-        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.1.0");
+        StringCchCopyW(versionFull, ARRAYSIZE(versionFull), L"v1.1.1");
     }
     m_pTextFormatDetail->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
     m_pRenderTarget->DrawText(
@@ -765,7 +765,7 @@ DWORD WINAPI MainWindow::CheckForUpdatesThread(LPVOID lpParam) {
                                             MultiByteToWideChar(CP_UTF8, 0, tag, len, ver, 32);
                                             self->m_latestVersion = ver;
                                             // Compare "1.0.9" with retrieved version
-                                            if (wcscmp(ver, L"1.1.0") > 0)
+                                            if (wcscmp(ver, L"1.1.1") > 0)
                                                 self->m_updateAvailable = true;
                                         }
                                     }

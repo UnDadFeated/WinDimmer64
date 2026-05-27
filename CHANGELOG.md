@@ -2,6 +2,11 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.1.1] - 2026-05-27
+
+### Bug Fixes
+* **Installer freeze**: Fixed 10-second freeze when "Launch WinDimmer64" checkbox is checked. Replaced `ShellExecuteW` with `CreateProcessW` to avoid COM/shell blocking.
+
 ## [1.1.0] - 2026-05-27
 
 ### Updates

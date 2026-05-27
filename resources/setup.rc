@@ -15,9 +15,9 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "UnDadFeated"
             VALUE "FileDescription", "WinDimmer64 Setup"
-            VALUE "FileVersion", "1.1.0"
-            VALUE "ProductName", "WinDimmer64"
-            VALUE "ProductVersion", "1.1.0"
+            VALUE "FileVersion", "1.1.1"
+
+            VALUE "ProductVersion", "1.1.1"
         END
     END
     BLOCK "VarFileInfo"
