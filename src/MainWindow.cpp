@@ -215,7 +215,7 @@ void MainWindow::UpdateLayout() {
     const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
 
     // Start yOffset below the header
-    int yOffset = 52;
+    int yOffset = 30;
 
     // 2. Master Slider Card (If multiple screens)
     if (activeMons.size() > 1) {
