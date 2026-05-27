@@ -1,4 +1,4 @@
-# WinDimmer64 (v1.0.8)
+# WinDimmer64
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Windows](https://img.shields.io/badge/OS-Windows-blue?logo=windows)](https://github.com/UnDadFeated/WinDimmer64)
