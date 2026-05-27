@@ -2,6 +2,11 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.1.3] - 2026-05-27
+
+### Updates
+* **More media players**: Expanded detection list — Kodi, MPV, Netflix, Screenbox, KMPlayer, GOM Player, SMPlayer, Zoom, Teams, WhatsApp, Slack.
+
 ## [1.1.2] - 2026-05-27
 
 ### Bug Fixes
