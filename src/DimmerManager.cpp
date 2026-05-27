@@ -61,6 +61,7 @@ void DimmerManager::RefreshMonitors() {
         }
         CreateOverlayForMonitor(mon);
     }
+    UpdateCursorDimming();
 }
 
 void DimmerManager::CreateOverlayForMonitor(ActiveMonitorInfo& info) {
@@ -98,6 +99,7 @@ void DimmerManager::SetMonitorDim(const std::wstring& id, int value) {
             break;
         }
     }
+    UpdateCursorDimming();
 }
 
 void DimmerManager::SetMonitorEnabled(const std::wstring& id, bool enabled) {
@@ -110,6 +112,7 @@ void DimmerManager::SetMonitorEnabled(const std::wstring& id, bool enabled) {
             break;
         }
     }
+    UpdateCursorDimming();
 }
 
 void DimmerManager::SetShowBoundaries(bool show) {
@@ -162,15 +165,14 @@ void DimmerManager::SetDimmingEnabled(bool enabled) {
     UpdateCursorDimming();
 }
 
-HCURSOR DimmerManager::CreateDimmedCursor() {
-    HCURSOR hOriginal = LoadCursor(nullptr, IDC_ARROW);
+HCURSOR DimmerManager::CreateDimmedCursor(HCURSOR hOriginal) {
+    if (!hOriginal) return nullptr;
     ICONINFO ii = { 0 };
     if (!GetIconInfo(hOriginal, &ii))
         return CopyIcon(hOriginal);
 
     if (!ii.hbmColor) {
         HCURSOR hCopy = CopyIcon(hOriginal);
-        DeleteObject(ii.hbmColor);
         if (ii.hbmMask) DeleteObject(ii.hbmMask);
         return hCopy;
     }
@@ -198,35 +200,18 @@ HCURSOR DimmerManager::CreateDimmedCursor() {
 
     SetBitmapBits(ii.hbmColor, pixelCount * static_cast<int>(sizeof(DWORD)), pixels.data());
 
-    HBITMAP hbmMask = nullptr;
-    if (ii.hbmMask) {
-        BITMAP bmMask = { 0 };
-        GetObject(ii.hbmMask, sizeof(bmMask), &bmMask);
-        std::vector<BYTE> maskBits(static_cast<size_t>(bmMask.bmWidthBytes) * bmMask.bmHeight);
-        GetBitmapBits(ii.hbmMask, static_cast<LONG>(maskBits.size()), maskBits.data());
-        hbmMask = CreateBitmap(bmMask.bmWidth, bmMask.bmHeight, 1, 1, maskBits.data());
-    }
-    if (!hbmMask)
-        hbmMask = CreateBitmap(1, 1, 1, 1, nullptr);
-
     ICONINFO iiNew = { 0 };
     iiNew.fIcon = FALSE;
     iiNew.xHotspot = ii.xHotspot;
     iiNew.yHotspot = ii.yHotspot;
     iiNew.hbmColor = ii.hbmColor;
-    iiNew.hbmMask = hbmMask;
+    iiNew.hbmMask = ii.hbmMask;
 
     HCURSOR hDimmed = CreateIconIndirect(&iiNew);
 
-    if (hDimmed) {
-        // Cursor now owns the bitmaps — system will clean them up via DestroyCursor
-        if (ii.hbmMask) DeleteObject(ii.hbmMask);
-    } else {
-        // Clean up on failure
-        DeleteObject(ii.hbmColor);
-        if (ii.hbmMask) DeleteObject(ii.hbmMask);
-        DeleteObject(hbmMask);
-    }
+    // Clean up original GDI bitmap handles returned by GetIconInfo!
+    DeleteObject(ii.hbmColor);
+    DeleteObject(ii.hbmMask);
 
     return hDimmed;
 }
@@ -247,23 +232,30 @@ void DimmerManager::UpdateCursorDimming() {
 
     bool shouldDim = dimLevel >= 5;
 
-    if (shouldDim && !m_cursorDimmed) {
-        CURSORINFO ci = { sizeof(CURSORINFO) };
-        GetCursorInfo(&ci);
-        m_hOriginalArrow = CopyIcon(ci.hCursor);
-        if (!m_hOriginalArrow)
-            m_hOriginalArrow = CopyIcon(LoadCursor(nullptr, IDC_ARROW));
+    struct CursorToDim {
+        DWORD id;
+        LPCWSTR idc;
+    };
 
-        HCURSOR hDimmed = CreateDimmedCursor();
-        if (hDimmed) {
-            SetSystemCursor(hDimmed, OCR_NORMAL);
-            m_cursorDimmed = true;
+    const CursorToDim cursors[] = {
+        { OCR_NORMAL, MAKEINTRESOURCEW(32512) },
+        { OCR_IBEAM, MAKEINTRESOURCEW(32513) },
+        { OCR_HAND, MAKEINTRESOURCEW(32649) }
+    };
+
+    if (shouldDim && !m_cursorDimmed) {
+        for (const auto& cur : cursors) {
+            HCURSOR hSys = LoadCursorW(nullptr, cur.idc);
+            if (hSys) {
+                HCURSOR hDimmed = CreateDimmedCursor(hSys);
+                if (hDimmed) {
+                    SetSystemCursor(hDimmed, cur.id);
+                }
+            }
         }
+        m_cursorDimmed = true;
     } else if (!shouldDim && m_cursorDimmed) {
-        if (m_hOriginalArrow) {
-            SetSystemCursor(m_hOriginalArrow, OCR_NORMAL);
-            m_hOriginalArrow = nullptr;
-        }
+        SystemParametersInfoW(SPI_SETCURSORS, 0, nullptr, 0);
         m_cursorDimmed = false;
     }
 }
@@ -375,8 +367,8 @@ void DimmerManager::DestroyOverlays() {
 
 DimmerManager::~DimmerManager() {
     DestroyOverlays();
-    if (m_cursorDimmed && m_hOriginalArrow) {
-        SetSystemCursor(m_hOriginalArrow, OCR_NORMAL);
+    if (m_cursorDimmed) {
+        SystemParametersInfoW(SPI_SETCURSORS, 0, nullptr, 0);
     }
     if (m_classRegistered) {
         UnregisterClassW(L"WinDimmer64OverlayClass", m_hInst);

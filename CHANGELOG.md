@@ -2,6 +2,14 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.2.5] - 2026-05-27
+
+### Bug Fixes
+* **Multi-Cursor Dimming**: Expanded cursor dimming to also cover text select (`OCR_IBEAM` / `IDC_IBEAM`) and link hovering hand (`OCR_HAND` / `IDC_HAND`) cursors, ensuring the cursor remains dimmed when hovering over buttons, links, or text fields.
+* **Out-of-Sync Cursor Dimming**: Routed cursor dimming updates directly into `SetMonitorDim`, `SetMonitorEnabled`, and `RefreshMonitors`, so the cursor's dim state is dynamically updated during slider drags, mouse scroll increments, keyboard adjustments, or when using "Undo Changes".
+* **GDI Handle Leaks**: Fixed a memory/GDI resource leak in `CreateDimmedCursor` by properly calling `DeleteObject` on the original color and mask GDI bitmap handles returned by `GetIconInfo` upon successful creation.
+* **Safe Cursor Restoration**: Upgraded cursor restoration to use a clean system-wide `SystemParametersInfo` call, eliminating potential cursor corruption or stale handle crashes when restoring original cursors.
+
 ## [1.2.4] - 2026-05-27
 
 ### Bug Fixes

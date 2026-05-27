@@ -1,11 +1,18 @@
 #pragma once
-#ifndef OCR_NORMAL
-#define OCR_NORMAL 32512
-#endif
 #include <windows.h>
 #include <string>
 #include <vector>
 #include <map>
+
+#ifndef OCR_NORMAL
+#define OCR_NORMAL 32512
+#endif
+#ifndef OCR_IBEAM
+#define OCR_IBEAM 32513
+#endif
+#ifndef OCR_HAND
+#define OCR_HAND 32649
+#endif
 
 struct ActiveMonitorInfo {
     std::wstring id;
@@ -55,7 +62,7 @@ private:
     void CreateOverlayForMonitor(ActiveMonitorInfo& info);
     static LRESULT CALLBACK OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp);
 
-    static HCURSOR CreateDimmedCursor();
+    static HCURSOR CreateDimmedCursor(HCURSOR hOriginal);
 
     HINSTANCE m_hInst = nullptr;
     std::vector<ActiveMonitorInfo> m_monitors;
@@ -67,7 +74,6 @@ private:
     bool m_dimmingEnabled = false;
     bool m_classRegistered = false;
 
-    HCURSOR m_hOriginalArrow = nullptr;
     bool m_cursorDimmed = false;
     bool m_videoDetected = false;
     std::vector<std::wstring> m_blockedApps;
