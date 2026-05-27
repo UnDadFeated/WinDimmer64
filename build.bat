@@ -52,4 +52,5 @@ if %errorlevel% equ 0 (
     echo.
     echo [ERROR] Build failed!
 )
-pause
+echo Done.
+

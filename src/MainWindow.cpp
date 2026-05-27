@@ -99,9 +99,10 @@ bool MainWindow::Create(HINSTANCE hInst, int nCmdShow) {
     // Synchronize monitor settings from loaded configuration
     SyncMonitorsWithConfig();
 
-    // Apply warm tint and focus mode settings
+    // Apply warm tint, focus mode, and active dimming settings
     DimmerManager::Instance().SetWarmTint(m_config.warmTint);
     DimmerManager::Instance().SetFocusMode(m_config.focusMode);
+    DimmerManager::Instance().SetDimmingEnabled(m_config.dimmingEnabled);
 
     // Register global hotkeys
     RegisterHotKey(m_hwnd, 101, MOD_CONTROL | MOD_ALT, VK_UP);
@@ -172,19 +173,19 @@ HRESULT MainWindow::CreateGraphicsResources() {
 
         if (SUCCEEDED(hr)) {
             m_pDWriteFactory->CreateTextFormat(
-                L"Segoe UI Variable Text", nullptr,
-                DWRITE_FONT_WEIGHT_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
-                18.0f, L"en-us", &m_pTextFormatTitle
+                L"Segoe UI Variable Display", nullptr,
+                DWRITE_FONT_WEIGHT_SEMI_BOLD, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
+                20.0f, L"en-us", &m_pTextFormatTitle
             );
             m_pDWriteFactory->CreateTextFormat(
                 L"Segoe UI Variable Text", nullptr,
                 DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
-                14.0f, L"en-us", &m_pTextFormatBody
+                13.0f, L"en-us", &m_pTextFormatBody
             );
             m_pDWriteFactory->CreateTextFormat(
                 L"Segoe UI Variable Text", nullptr,
                 DWRITE_FONT_WEIGHT_NORMAL, DWRITE_FONT_STYLE_NORMAL, DWRITE_FONT_STRETCH_NORMAL,
-                11.0f, L"en-us", &m_pTextFormatDetail
+                10.5f, L"en-us", &m_pTextFormatDetail
             );
         }
     }
@@ -210,16 +211,15 @@ void MainWindow::UpdateLayout() {
     m_checkboxes.clear();
 
     // Setup Undo button bounds in the top-right header region
-    m_undoRect.left = m_windowWidth - 75;
+    m_undoRect.left = m_windowWidth - 110;
     m_undoRect.top = 18;
     m_undoRect.right = m_windowWidth - 20;
     m_undoRect.bottom = 38;
 
     const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
 
-    // 1. Header (WinDimmer64 Title)
-    // Offset standard positions
-    int yOffset = 20;
+    // Start yOffset below the header
+    int yOffset = 60;
 
     // 2. Master Slider Card (If multiple screens)
     if (activeMons.size() > 1) {
@@ -229,9 +229,9 @@ void MainWindow::UpdateLayout() {
         master.active = m_config.masterEnabled;
         
         master.rect.left = 20;
-        master.rect.top = yOffset + 50;
+        master.rect.top = yOffset;
         master.rect.right = m_windowWidth - 35;
-        master.rect.bottom = master.rect.top + 80;
+        master.rect.bottom = master.rect.top + 75;
 
         m_sliders.push_back(master);
 
@@ -246,7 +246,7 @@ void MainWindow::UpdateLayout() {
         mcb.rect.bottom = mcb.rect.top + 18;
         m_checkboxes.push_back(mcb);
 
-        yOffset += 100;
+        yOffset = master.rect.bottom + 15;
     }
 
     // 3. Individual Screen Sliders
@@ -257,7 +257,7 @@ void MainWindow::UpdateLayout() {
         slider.active = mon.enabled;
         
         slider.rect.left = 20;
-        slider.rect.top = yOffset + 45;
+        slider.rect.top = yOffset;
         slider.rect.right = m_windowWidth - 35;
         slider.rect.bottom = slider.rect.top + 75;
 
@@ -274,127 +274,54 @@ void MainWindow::UpdateLayout() {
         cb.rect.bottom = cb.rect.top + 18;
         m_checkboxes.push_back(cb);
 
-        yOffset += 90;
+        yOffset = slider.rect.bottom + 15;
     }
 
-    // 4. Settings Checkboxes (Footer Area)
-    yOffset += 20;
-    
-    // Close minimizes to tray
-    UICheckbox ctt;
-    ctt.settingName = L"CloseToTray";
-    ctt.checked = m_config.closeToTray;
-    ctt.pValue = &m_config.closeToTray;
-    ctt.label = L"Close button hides to tray";
-    ctt.rect.left = 25;
-    ctt.rect.top = yOffset;
-    ctt.rect.right = ctt.rect.left + 34;
-    ctt.rect.bottom = ctt.rect.top + 18;
-    m_checkboxes.push_back(ctt);
+    // Space before settings
+    yOffset += 10;
 
-    // Show in taskbar
-    UICheckbox sit;
-    sit.settingName = L"ShowInTaskbar";
-    sit.checked = m_config.showInTaskbar;
-    sit.pValue = &m_config.showInTaskbar;
-    sit.label = L"Show in taskbar";
-    sit.rect.left = 260;
-    sit.rect.top = yOffset;
-    sit.rect.right = sit.rect.left + 34;
-    sit.rect.bottom = sit.rect.top + 18;
-    m_checkboxes.push_back(sit);
+    // 4. Settings Checkboxes (Grouped Footer Area)
+    // Helper lambda: places a checkbox at absolute yPos
+    auto AddCheckbox = [&](const std::wstring& name, bool checked, bool* pValue, const std::wstring& label, int col, int yPos) {
+        UICheckbox cb;
+        cb.settingName = name;
+        cb.checked = checked;
+        cb.pValue = pValue;
+        cb.label = label;
+        cb.rect.left = (col == 0) ? 25 : 255;
+        cb.rect.top = yPos;
+        cb.rect.right = cb.rect.left + 34;
+        cb.rect.bottom = cb.rect.top + 18;
+        m_checkboxes.push_back(cb);
+    };
 
+    // ── DIMMING section ──
+    yOffset += 22; // space for section header label
+    AddCheckbox(L"DimmingEnabled", m_config.dimmingEnabled, &m_config.dimmingEnabled, L"Active Dimming", 0, yOffset);
+    AddCheckbox(L"GroupDim", m_config.groupDim, &m_config.groupDim, L"Group All Monitors", 1, yOffset);
+    yOffset += 28;
+    AddCheckbox(L"IdleDimEnabled", m_config.idleDimEnabled, &m_config.idleDimEnabled, L"Dim When Away", 0, yOffset);
+    AddCheckbox(L"IdleTurnOff", m_config.idleTurnOff, &m_config.idleTurnOff, L"Turn Off When Away", 1, yOffset);
     yOffset += 28;
 
-    // Show boundary diagnostics
-    UICheckbox sbd;
-    sbd.settingName = L"ShowBoundaries";
-    sbd.checked = m_config.showBoundaries;
-    sbd.pValue = &m_config.showBoundaries;
-    sbd.label = L"Show boundary diagnostics";
-    sbd.rect.left = 25;
-    sbd.rect.top = yOffset;
-    sbd.rect.right = sbd.rect.left + 34;
-    sbd.rect.bottom = sbd.rect.top + 18;
-    m_checkboxes.push_back(sbd);
-
-    // Start with windows
-    UICheckbox sww;
-    sww.settingName = L"StartWithWindows";
-    sww.checked = m_config.startWithWindows;
-    sww.pValue = &m_config.startWithWindows;
-    sww.label = L"Start with Windows";
-    sww.rect.left = 260;
-    sww.rect.top = yOffset;
-    sww.rect.right = sww.rect.left + 34;
-    sww.rect.bottom = sww.rect.top + 18;
-    m_checkboxes.push_back(sww);
-
+    // ── DISPLAY section ──
+    yOffset += 14; // gap between sections
+    yOffset += 22; // space for section header label
+    AddCheckbox(L"WarmTint", m_config.warmTint, &m_config.warmTint, L"Warm Amber Tint", 0, yOffset);
+    AddCheckbox(L"FocusMode", m_config.focusMode, &m_config.focusMode, L"Focus Highlight", 1, yOffset);
+    yOffset += 28;
+    AddCheckbox(L"LightMode", m_config.lightMode, &m_config.lightMode, L"Light Mode", 0, yOffset);
+    AddCheckbox(L"ShowBoundaries", m_config.showBoundaries, &m_config.showBoundaries, L"Boundary Diagnostics", 1, yOffset);
     yOffset += 28;
 
-    // Eye-Saver Warm Tint
-    UICheckbox wt;
-    wt.settingName = L"WarmTint";
-    wt.checked = m_config.warmTint;
-    wt.pValue = &m_config.warmTint;
-    wt.label = L"Eye-Saver Warm Amber Tint";
-    wt.rect.left = 25;
-    wt.rect.top = yOffset;
-    wt.rect.right = wt.rect.left + 34;
-    wt.rect.bottom = wt.rect.top + 18;
-    m_checkboxes.push_back(wt);
-
-    // Active Monitor Focus Mode
-    UICheckbox fm;
-    fm.settingName = L"FocusMode";
-    fm.checked = m_config.focusMode;
-    fm.pValue = &m_config.focusMode;
-    fm.label = L"Focused Screen Highlight";
-    fm.rect.left = 260;
-    fm.rect.top = yOffset;
-    fm.rect.right = fm.rect.left + 34;
-    fm.rect.bottom = fm.rect.top + 18;
-    m_checkboxes.push_back(fm);
-
+    // ── APPLICATION section ──
+    yOffset += 14; // gap between sections
+    yOffset += 22; // space for section header label
+    AddCheckbox(L"CloseToTray", m_config.closeToTray, &m_config.closeToTray, L"Close to Tray", 0, yOffset);
+    AddCheckbox(L"ShowInTaskbar", m_config.showInTaskbar, &m_config.showInTaskbar, L"Show in Taskbar", 1, yOffset);
     yOffset += 28;
-
-    // Enable Idle Dimming
-    UICheckbox ide;
-    ide.settingName = L"IdleDimEnabled";
-    ide.checked = m_config.idleDimEnabled;
-    ide.pValue = &m_config.idleDimEnabled;
-    ide.label = L"Dim screen when idle";
-    ide.rect.left = 25;
-    ide.rect.top = yOffset;
-    ide.rect.right = ide.rect.left + 34;
-    ide.rect.bottom = ide.rect.top + 18;
-    m_checkboxes.push_back(ide);
-
-    // Turn off screens on timeout
-    UICheckbox ito;
-    ito.settingName = L"IdleTurnOff";
-    ito.checked = m_config.idleTurnOff;
-    ito.pValue = &m_config.idleTurnOff;
-    ito.label = L"Turn off screen on idle";
-    ito.rect.left = 260;
-    ito.rect.top = yOffset;
-    ito.rect.right = ito.rect.left + 34;
-    ito.rect.bottom = ito.rect.top + 18;
-    m_checkboxes.push_back(ito);
-
+    AddCheckbox(L"StartWithWindows", m_config.startWithWindows, &m_config.startWithWindows, L"Start with Windows", 0, yOffset);
     yOffset += 28;
-
-    // Light Mode Toggle
-    UICheckbox lm;
-    lm.settingName = L"LightMode";
-    lm.checked = m_config.lightMode;
-    lm.pValue = &m_config.lightMode;
-    lm.label = L"Light Mode Theme Toggle";
-    lm.rect.left = 25;
-    lm.rect.top = yOffset;
-    lm.rect.right = lm.rect.left + 34;
-    lm.rect.bottom = lm.rect.top + 18;
-    m_checkboxes.push_back(lm);
 
     if (m_config.idleDimEnabled) {
         // Inactivity Minutes Slider Card
@@ -403,7 +330,7 @@ void MainWindow::UpdateLayout() {
         idleMin.value = (m_config.idleMinutes - 1) / 59.0f; // 1 to 60
         idleMin.active = true;
         idleMin.rect.left = 20;
-        idleMin.rect.top = yOffset + 30;
+        idleMin.rect.top = yOffset + 15;
         idleMin.rect.right = m_windowWidth - 35;
         idleMin.rect.bottom = idleMin.rect.top + 65;
         m_sliders.push_back(idleMin);
@@ -414,16 +341,16 @@ void MainWindow::UpdateLayout() {
         idleLvl.value = m_config.idleDimLevel / 100.0f; // 0 to 100
         idleLvl.active = true;
         idleLvl.rect.left = 20;
-        idleLvl.rect.top = yOffset + 105;
+        idleLvl.rect.top = idleMin.rect.bottom + 15;
         idleLvl.rect.right = m_windowWidth - 35;
         idleLvl.rect.bottom = idleLvl.rect.top + 65;
         m_sliders.push_back(idleLvl);
 
-        yOffset += 150;
+        yOffset = idleLvl.rect.bottom;
     }
 
     // Calculate required window height dynamically
-    m_windowHeight = yOffset + 65;
+    m_windowHeight = yOffset + 55;
     
     RECT rc = { 0, 0, m_windowWidth, m_windowHeight };
     AdjustWindowRectEx(&rc, GetWindowLongW(m_hwnd, GWL_STYLE), FALSE, GetWindowLongW(m_hwnd, GWL_EXSTYLE));
@@ -436,30 +363,30 @@ void MainWindow::OnPaint() {
     m_pRenderTarget->BeginDraw();
     m_pRenderTarget->SetTransform(D2D1::IdentityMatrix());
     
-    // Dynamic HSL-Tailored Color Theme Tokens
+    // Dynamic Premium Slate / Grey monochrome Theme Tokens
     if (m_config.lightMode) {
-        m_pBrushBg->SetColor(D2D1::ColorF(0xF2F2F7));
+        m_pBrushBg->SetColor(D2D1::ColorF(0xF0F0F2));
         m_pBrushCard->SetColor(D2D1::ColorF(0xFFFFFF));
-        m_pBrushCardBorder->SetColor(D2D1::ColorF(0xD1D1D6));
-        m_pBrushText->SetColor(D2D1::ColorF(0x1C1C1E));
-        m_pBrushTextMuted->SetColor(D2D1::ColorF(0x8E8E93));
-        m_pBrushTrack->SetColor(D2D1::ColorF(0xE5E5EA));
-        m_pBrushAccent->SetColor(D2D1::ColorF(0x007AFF));
-        m_pBrushAccentHover->SetColor(D2D1::ColorF(0x0056B3));
+        m_pBrushCardBorder->SetColor(D2D1::ColorF(0xE0E0E0));
+        m_pBrushText->SetColor(D2D1::ColorF(0x1F1F1F));
+        m_pBrushTextMuted->SetColor(D2D1::ColorF(0x757575));
+        m_pBrushTrack->SetColor(D2D1::ColorF(0xE0E0E2));
+        m_pBrushAccent->SetColor(D2D1::ColorF(0x7A7A7E));
+        m_pBrushAccentHover->SetColor(D2D1::ColorF(0x555558));
     } else {
-        // Antigravity Obsidian Dark Theme (with sleek silver lines)
-        m_pBrushBg->SetColor(D2D1::ColorF(0x0B0B0C));
-        m_pBrushCard->SetColor(D2D1::ColorF(0x121214));
-        m_pBrushCardBorder->SetColor(D2D1::ColorF(0x8A8A8F, 0.35f)); // premium subtle silver line
-        m_pBrushText->SetColor(D2D1::ColorF(0xF2F2F7));
-        m_pBrushTextMuted->SetColor(D2D1::ColorF(0x8E8E93));
-        m_pBrushTrack->SetColor(D2D1::ColorF(0x2C2C2E));
-        m_pBrushAccent->SetColor(D2D1::ColorF(0x0A84FF));
-        m_pBrushAccentHover->SetColor(D2D1::ColorF(0x64D2FF));
+        // Sleek Industrial Dark Slate Theme
+        m_pBrushBg->SetColor(D2D1::ColorF(0x121212));
+        m_pBrushCard->SetColor(D2D1::ColorF(0x1E1E1E));
+        m_pBrushCardBorder->SetColor(D2D1::ColorF(0x2D2D2D));
+        m_pBrushText->SetColor(D2D1::ColorF(0xE1E1E1));
+        m_pBrushTextMuted->SetColor(D2D1::ColorF(0x808080));
+        m_pBrushTrack->SetColor(D2D1::ColorF(0x2D2D2D));
+        m_pBrushAccent->SetColor(D2D1::ColorF(0x8E8E93));
+        m_pBrushAccentHover->SetColor(D2D1::ColorF(0xC7C7CC));
     }
 
     // Clear screen
-    m_pRenderTarget->Clear(m_config.lightMode ? D2D1::ColorF(0xF2F2F7) : D2D1::ColorF(0x0B0B0C));
+    m_pRenderTarget->Clear(m_pBrushBg->GetColor());
 
     // Draw Title Header
     m_pRenderTarget->DrawText(
@@ -521,7 +448,7 @@ void MainWindow::OnPaint() {
         }
 
         // Draw monitor label (shift text left if checkbox is inside the card)
-        float textLeft = (slider.isIdleMinutes || slider.isIdleDimLevel) ? (slider.rect.left + 20.0f) : (slider.rect.left + 48.0f);
+        float textLeft = (slider.isIdleMinutes || slider.isIdleDimLevel) ? (slider.rect.left + 20.0f) : (slider.rect.left + 60.0f);
         m_pRenderTarget->DrawText(
             displayName.c_str(), static_cast<UINT32>(displayName.length()),
             m_pTextFormatBody,
@@ -596,7 +523,30 @@ void MainWindow::OnPaint() {
         );
     }
 
-    // Render high-tech sliding toggle switches instead of old checkboxes
+    // Draw grouped section header labels above their first toggle
+    for (const auto& cb : m_checkboxes) {
+        if (cb.settingName == L"DimmingEnabled" && !cb.label.empty()) {
+            m_pRenderTarget->DrawText(
+                L"DIMMING", 7, m_pTextFormatDetail,
+                D2D1::RectF(25.0f, cb.rect.top - 18.0f, 200.0f, cb.rect.top - 2.0f),
+                m_pBrushTextMuted
+            );
+        } else if (cb.settingName == L"WarmTint" && !cb.label.empty()) {
+            m_pRenderTarget->DrawText(
+                L"DISPLAY", 7, m_pTextFormatDetail,
+                D2D1::RectF(25.0f, cb.rect.top - 18.0f, 200.0f, cb.rect.top - 2.0f),
+                m_pBrushTextMuted
+            );
+        } else if (cb.settingName == L"CloseToTray" && !cb.label.empty()) {
+            m_pRenderTarget->DrawText(
+                L"APPLICATION", 11, m_pTextFormatDetail,
+                D2D1::RectF(25.0f, cb.rect.top - 18.0f, 200.0f, cb.rect.top - 2.0f),
+                m_pBrushTextMuted
+            );
+        }
+    }
+
+    // Render high-tech sliding toggle switches
     for (const auto& cb : m_checkboxes) {
         D2D1_ROUNDED_RECT switchTrack = D2D1::RoundedRect(
             D2D1::RectF(cb.rect.left, cb.rect.top, cb.rect.right, cb.rect.bottom),
@@ -616,14 +566,15 @@ void MainWindow::OnPaint() {
         float knobY = cb.rect.top + 9.0f;
         m_pRenderTarget->FillEllipse(
             D2D1::Ellipse(D2D1::Point2F(knobX, knobY), 6.0f, 6.0f),
-            m_pBrushText
+            cb.checked ? m_pBrushText : m_pBrushTextMuted
         );
 
         if (!cb.label.empty()) {
+            float labelRight = (cb.rect.left < m_windowWidth / 2) ? (m_windowWidth / 2.0f - 10.0f) : (m_windowWidth - 20.0f);
             m_pRenderTarget->DrawText(
                 cb.label.c_str(), static_cast<UINT32>(cb.label.length()),
                 m_pTextFormatDetail,
-                D2D1::RectF(cb.rect.right + 10.0f, cb.rect.top + 1.0f, cb.rect.right + 230.0f, cb.rect.bottom + 10.0f),
+                D2D1::RectF(cb.rect.right + 10.0f, cb.rect.top + 1.0f, labelRight, cb.rect.bottom + 15.0f),
                 m_pBrushText
             );
         }
@@ -663,7 +614,7 @@ void MainWindow::OnPaint() {
     );
 
     // Version Number in footer right
-    const wchar_t* versionStr = L"v1.0.3";
+    const wchar_t* versionStr = L"v1.0.4";
     m_pRenderTarget->DrawText(
         versionStr, 6,
         m_pTextFormatDetail,
@@ -694,6 +645,15 @@ void MainWindow::HandleMouseMove(int x, int y) {
             if (slider.value < 0.0f) slider.value = 0.0f;
             if (slider.value > 1.0f) slider.value = 1.0f;
 
+            // Auto-enable dimming when user actively drags a monitor slider
+            if (!slider.isIdleMinutes && !slider.isIdleDimLevel && !m_config.dimmingEnabled) {
+                m_config.dimmingEnabled = true;
+                DimmerManager::Instance().SetDimmingEnabled(true);
+                for (auto& cb : m_checkboxes) {
+                    if (cb.settingName == L"DimmingEnabled") { cb.checked = true; break; }
+                }
+            }
+
             if (slider.isMaster) {
                 int actualDim = static_cast<int>(slider.value * 90.0f);
                 m_config.masterValue = actualDim;
@@ -719,11 +679,27 @@ void MainWindow::HandleMouseMove(int x, int y) {
                 }
             } else {
                 int actualDim = static_cast<int>(slider.value * 90.0f);
-                DimmerManager::Instance().SetMonitorDim(slider.monitorId, actualDim);
-                for (auto& monConf : m_config.monitors) {
-                    if (monConf.id == slider.monitorId) {
+                if (m_config.groupDim) {
+                    m_config.masterValue = actualDim;
+                    const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
+                    for (const auto& mon : activeMons) {
+                        DimmerManager::Instance().SetMonitorDim(mon.id, actualDim);
+                    }
+                    for (auto& monConf : m_config.monitors) {
                         monConf.value = actualDim;
-                        break;
+                    }
+                    for (auto& other : m_sliders) {
+                        if (!other.isIdleMinutes && !other.isIdleDimLevel) {
+                            other.value = slider.value;
+                        }
+                    }
+                } else {
+                    DimmerManager::Instance().SetMonitorDim(slider.monitorId, actualDim);
+                    for (auto& monConf : m_config.monitors) {
+                        if (monConf.id == slider.monitorId) {
+                            monConf.value = actualDim;
+                            break;
+                        }
                     }
                 }
             }
@@ -779,6 +755,7 @@ void MainWindow::HandleLButtonDown(int x, int y) {
         if (!m_config.idleDimEnabled) {
             DimmerManager::Instance().SetIdleState(false);
         }
+        DimmerManager::Instance().SetDimmingEnabled(m_config.dimmingEnabled);
 
         // Dynamically toggle DWM theme bar
         BOOL useDark = !m_config.lightMode;
@@ -823,18 +800,39 @@ void MainWindow::HandleLButtonDown(int x, int y) {
             // Apply setting immediately
             if (!cb.monitorId.empty()) {
                 // Individual screen checkbox
-                DimmerManager::Instance().SetMonitorEnabled(cb.monitorId, cb.checked);
-                for (auto& monConf : m_config.monitors) {
-                    if (monConf.id == cb.monitorId) {
-                        monConf.enabled = cb.checked;
-                        break;
+                if (m_config.groupDim) {
+                    m_config.masterEnabled = cb.checked;
+                    const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
+                    for (const auto& mon : activeMons) {
+                        DimmerManager::Instance().SetMonitorEnabled(mon.id, cb.checked);
                     }
-                }
-                // Refresh slider active status
-                for (auto& sl : m_sliders) {
-                    if (sl.monitorId == cb.monitorId) {
-                        sl.active = cb.checked;
-                        break;
+                    for (auto& monConf : m_config.monitors) {
+                        monConf.enabled = cb.checked;
+                    }
+                    for (auto& sl : m_sliders) {
+                        if (!sl.isIdleMinutes && !sl.isIdleDimLevel) {
+                            sl.active = cb.checked;
+                        }
+                    }
+                    for (auto& otherCb : m_checkboxes) {
+                        if (!otherCb.monitorId.empty() || otherCb.settingName == L"MasterEnabled") {
+                            otherCb.checked = cb.checked;
+                        }
+                    }
+                } else {
+                    DimmerManager::Instance().SetMonitorEnabled(cb.monitorId, cb.checked);
+                    for (auto& monConf : m_config.monitors) {
+                        if (monConf.id == cb.monitorId) {
+                            monConf.enabled = cb.checked;
+                            break;
+                        }
+                    }
+                    // Refresh slider active status
+                    for (auto& sl : m_sliders) {
+                        if (sl.monitorId == cb.monitorId) {
+                            sl.active = cb.checked;
+                            break;
+                        }
                     }
                 }
             } else if (cb.settingName == L"MasterEnabled") {
@@ -847,13 +845,18 @@ void MainWindow::HandleLButtonDown(int x, int y) {
                     monConf.enabled = cb.checked;
                 }
                 for (auto& sl : m_sliders) {
-                    sl.active = cb.checked;
+                    if (!sl.isIdleMinutes && !sl.isIdleDimLevel) {
+                        sl.active = cb.checked;
+                    }
+                }
+                for (auto& otherCb : m_checkboxes) {
+                    if (!otherCb.monitorId.empty()) {
+                        otherCb.checked = cb.checked;
+                    }
                 }
             } else if (cb.settingName == L"CloseToTray") {
                 // Handled dynamically
             } else if (cb.settingName == L"ShowInTaskbar") {
-                // Standard styles need window recreation or update, simpler to just write to config and let user know,
-                // or dynamic GWL_STYLE toggle:
                 LONG_PTR style = GetWindowLongPtrW(m_hwnd, GWL_STYLE);
                 if (cb.checked) {
                     SetWindowLongPtrW(m_hwnd, GWL_STYLE, WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX);
@@ -876,6 +879,31 @@ void MainWindow::HandleLButtonDown(int x, int y) {
                 UpdateLayout();
             } else if (cb.settingName == L"IdleTurnOff") {
                 // Handled dynamically
+            } else if (cb.settingName == L"DimmingEnabled") {
+                DimmerManager::Instance().SetDimmingEnabled(cb.checked);
+            } else if (cb.settingName == L"GroupDim") {
+                if (cb.checked) {
+                    const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
+                    for (const auto& mon : activeMons) {
+                        DimmerManager::Instance().SetMonitorDim(mon.id, m_config.masterValue);
+                        DimmerManager::Instance().SetMonitorEnabled(mon.id, m_config.masterEnabled);
+                    }
+                    for (auto& monConf : m_config.monitors) {
+                        monConf.value = m_config.masterValue;
+                        monConf.enabled = m_config.masterEnabled;
+                    }
+                    for (auto& sl : m_sliders) {
+                        if (!sl.isMaster && !sl.isIdleMinutes && !sl.isIdleDimLevel) {
+                            sl.value = m_config.masterValue / 90.0f;
+                            sl.active = m_config.masterEnabled;
+                        }
+                    }
+                    for (auto& otherCb : m_checkboxes) {
+                        if (!otherCb.monitorId.empty()) {
+                            otherCb.checked = m_config.masterEnabled;
+                        }
+                    }
+                }
             } else if (cb.settingName == L"LightMode") {
                 BOOL useDark = !cb.checked;
                 DwmSetWindowAttribute(m_hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
@@ -916,6 +944,15 @@ void MainWindow::HandleMouseWheel(short delta, int x, int y) {
             if (slider.value < 0.0f) slider.value = 0.0f;
             if (slider.value > 1.0f) slider.value = 1.0f;
 
+            // Auto-enable dimming when user scrolls a monitor slider
+            if (!slider.isIdleMinutes && !slider.isIdleDimLevel && !m_config.dimmingEnabled) {
+                m_config.dimmingEnabled = true;
+                DimmerManager::Instance().SetDimmingEnabled(true);
+                for (auto& cb : m_checkboxes) {
+                    if (cb.settingName == L"DimmingEnabled") { cb.checked = true; break; }
+                }
+            }
+
             if (slider.isMaster) {
                 int actualDim = static_cast<int>(slider.value * 90.0f);
                 m_config.masterValue = actualDim;
@@ -937,11 +974,24 @@ void MainWindow::HandleMouseWheel(short delta, int x, int y) {
                 }
             } else {
                 int actualDim = static_cast<int>(slider.value * 90.0f);
-                DimmerManager::Instance().SetMonitorDim(slider.monitorId, actualDim);
-                for (auto& monConf : m_config.monitors) {
-                    if (monConf.id == slider.monitorId) {
+                if (m_config.groupDim) {
+                    m_config.masterValue = actualDim;
+                    for (auto& mon : DimmerManager::Instance().GetActiveMonitors()) {
+                        DimmerManager::Instance().SetMonitorDim(mon.id, actualDim);
+                    }
+                    for (auto& monConf : m_config.monitors) {
                         monConf.value = actualDim;
-                        break;
+                    }
+                    for (auto& other : m_sliders) {
+                        if (!other.isIdleMinutes && !other.isIdleDimLevel) other.value = slider.value;
+                    }
+                } else {
+                    DimmerManager::Instance().SetMonitorDim(slider.monitorId, actualDim);
+                    for (auto& monConf : m_config.monitors) {
+                        if (monConf.id == slider.monitorId) {
+                            monConf.value = actualDim;
+                            break;
+                        }
                     }
                 }
             }
@@ -971,6 +1021,15 @@ void MainWindow::HandleKeyDown(WPARAM key) {
                 if (slider.value < 0.0f) slider.value = 0.0f;
                 if (slider.value > 1.0f) slider.value = 1.0f;
 
+                // Auto-enable dimming when user arrow-keys a monitor slider
+                if (!slider.isIdleMinutes && !slider.isIdleDimLevel && !m_config.dimmingEnabled) {
+                    m_config.dimmingEnabled = true;
+                    DimmerManager::Instance().SetDimmingEnabled(true);
+                    for (auto& cb : m_checkboxes) {
+                        if (cb.settingName == L"DimmingEnabled") { cb.checked = true; break; }
+                    }
+                }
+
                 if (slider.isMaster) {
                     int actualDim = static_cast<int>(slider.value * 90.0f);
                     m_config.masterValue = actualDim;
@@ -992,11 +1051,24 @@ void MainWindow::HandleKeyDown(WPARAM key) {
                     }
                 } else {
                     int actualDim = static_cast<int>(slider.value * 90.0f);
-                    DimmerManager::Instance().SetMonitorDim(slider.monitorId, actualDim);
-                    for (auto& monConf : m_config.monitors) {
-                        if (monConf.id == slider.monitorId) {
+                    if (m_config.groupDim) {
+                        m_config.masterValue = actualDim;
+                        for (auto& mon : DimmerManager::Instance().GetActiveMonitors()) {
+                            DimmerManager::Instance().SetMonitorDim(mon.id, actualDim);
+                        }
+                        for (auto& monConf : m_config.monitors) {
                             monConf.value = actualDim;
-                            break;
+                        }
+                        for (auto& other : m_sliders) {
+                            if (!other.isIdleMinutes && !other.isIdleDimLevel) other.value = slider.value;
+                        }
+                    } else {
+                        DimmerManager::Instance().SetMonitorDim(slider.monitorId, actualDim);
+                        for (auto& monConf : m_config.monitors) {
+                            if (monConf.id == slider.monitorId) {
+                                monConf.value = actualDim;
+                                break;
+                            }
                         }
                     }
                 }

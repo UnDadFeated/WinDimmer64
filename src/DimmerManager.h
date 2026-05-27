@@ -38,6 +38,8 @@ public:
     bool GetFocusMode() const { return m_focusMode; }
     bool IsIdleState() const { return m_isIdleState; }
     int GetIdleDimLevel() const { return m_idleDimLevel; }
+    void SetDimmingEnabled(bool enabled);
+    bool IsDimmingEnabled() const { return m_dimmingEnabled; }
 
 private:
     DimmerManager() = default;
@@ -53,5 +55,6 @@ private:
     bool m_focusMode = false;
     bool m_isIdleState = false;
     int m_idleDimLevel = 90;
+    bool m_dimmingEnabled = false;
     bool m_classRegistered = false;
 };

@@ -90,7 +90,7 @@ private:
     // UI Interactive components
     std::vector<UISlider> m_sliders;
     std::vector<UICheckbox> m_checkboxes;
-    int m_windowWidth = 460;
+    int m_windowWidth = 480;
     int m_windowHeight = 520;
     AppConfig m_config;
 

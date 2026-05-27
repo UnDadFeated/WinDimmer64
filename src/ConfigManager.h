@@ -5,7 +5,7 @@
 
 struct MonitorConfig {
     std::wstring id;
-    int value = 0; // 0 to 90 (representing opacity percentage)
+    int value = 75; // 0 to 90 (default 75% dimming)
     bool enabled = true;
 };
 
@@ -23,9 +23,11 @@ struct AppConfig {
     int idleDimLevel = 90; // 0% to 100% dimming
     bool idleTurnOff = false;
 
-    int masterValue = 0; // 0 to 90
+    int masterValue = 75; // 0 to 90 (default 75% dimming)
     bool masterEnabled = true;
     bool lightMode = false;
+    bool dimmingEnabled = false; // Default to false so it does NOT dim on startup!
+    bool groupDim = false; // Sync all monitors to drag together
     std::vector<MonitorConfig> monitors;
 };
 

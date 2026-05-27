@@ -74,6 +74,8 @@ AppConfig ConfigManager::LoadConfig(const std::wstring& filePath) {
     if (findValue(L"MasterValue", val)) config.masterValue = ParseInt(val);
     if (findValue(L"MasterEnabled", val)) config.masterEnabled = ParseBool(val);
     if (findValue(L"LightMode", val)) config.lightMode = ParseBool(val);
+    if (findValue(L"DimmingEnabled", val)) config.dimmingEnabled = ParseBool(val);
+    if (findValue(L"GroupDim", val)) config.groupDim = ParseBool(val);
 
     // Parse Monitors array
     size_t monitorsPos = content.find(L"\"Monitors\"");
@@ -132,6 +134,8 @@ void ConfigManager::SaveConfig(const std::wstring& filePath, const AppConfig& co
     file << L"  \"MasterValue\": " << config.masterValue << L",\n";
     file << L"  \"MasterEnabled\": " << (config.masterEnabled ? L"true" : L"false") << L",\n";
     file << L"  \"LightMode\": " << (config.lightMode ? L"true" : L"false") << L",\n";
+    file << L"  \"DimmingEnabled\": " << (config.dimmingEnabled ? L"true" : L"false") << L",\n";
+    file << L"  \"GroupDim\": " << (config.groupDim ? L"true" : L"false") << L",\n";
     file << L"  \"Monitors\": [\n";
 
     for (size_t i = 0; i < config.monitors.size(); ++i) {

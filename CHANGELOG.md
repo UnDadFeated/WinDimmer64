@@ -2,15 +2,30 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.0.4] - 2026-05-27
+
+### Bug Fixes
+* **Slider Dimming Not Applied**: Fixed an issue where dragging, scrolling, or arrow-keying a monitor brightness slider had no visible effect on screen brightness. Adjusting any monitor slider now auto-enables active dimming if it was off, so you see the result immediately without manually toggling the switch first.
+
+### Updates
+* **Grouped Settings Sections**: Reorganized all toggle switches into three labeled sections — **DIMMING**, **DISPLAY**, and **APPLICATION** — with muted section header labels and breathing room between groups. Related options are now visually clustered, making the settings panel easier to scan.
+* **Shortened Toggle Labels**: Trimmed checkbox labels to be punchier and less verbose (e.g. "Dim When Away" instead of "Dim screen when idle").
+
 ## [1.0.3] - 2026-05-27
 
 ### New Features
-* **Visual Undo Changes Engine**: Added an interactive "Undo Changes" button in the top-right header of the settings panel. If you modify any sliders or checkboxes, clicking it instantly reverts all monitors, theme settings, timeouts, and options back to your starting session preferences in real time.
+* **Active Dimming Toggle**: Added a dedicated manual override switch. Checking it applies your screen dimming settings immediately, while unchecking it keeps screens at 100% brightness.
+* **Group Dimming Sync**: Added a "Group Dim All Monitors" toggle option. Enabling it locks all monitor brightness sliders and enabled toggles together, making them sync to the same values instantly.
+* **Visual Undo Changes Engine**: Added an interactive "Undo Changes" button in the top-right header of the settings panel to revert all settings changes back to your starting session preferences in real time.
 * **Dynamic Binding Architecture**: Re-engineered checkbox settings to bind directly to configuration variables via pointers, removing all hardcoded mapping loops from the rendering and event systems.
 
 ### Updates
-* **Visual Spacing & Alignment**: Solved slider label overlapping with monitor selection checkmarks by dynamically shifting text columns (+48px offset). Shifted column spacing of settings checkmarks to X=260 to provide a symmetrical, professional layout grid.
-* **Safe Launch Defaults**: Set the initial startup dimming level to 0% to ensure that first-time launches do not modify active display brightness levels before you decide to move the master slider.
+* **Premium Monochrome Grey Theme**: Replaced the high-intensity blue highlight colors with a high-end slate-obsidian dark/light grey palette (featuring carbon `#121212`, mid-slate `#1E1E1E`, slate-grey `#2D2D2D`, and soft silver `#E1E1E1`), creating an incredibly focused, sleek, and premium industrial look with elegant low-contrast active/inactive switches.
+* **Advanced Fluent Typography**: Upgraded headings to the modern `Segoe UI Variable Display` family (semi-bold 20pt) and scaled body copy to `Segoe UI Variable Text` (13pt), yielding a highly refined, professional presentation.
+* **Symmetric Spacing Grid**: Restructured layout rendering to calculate coordinates sequentially and dynamically. Completely resolved the visual collision bug by ensuring all slider cards, divider lines, and footer elements are placed with strict margins and generous vertical spacing (`row * 32`).
+* **Label-Switch Overlap Fixed**: Shifted monitor card labels to X=80 (`+60px` offset) and clipped labels dynamically based on their column width, ensuring that toggle switches never dissect or overlap text.
+
+
 
 ## [1.0.2] - 2026-05-27
 

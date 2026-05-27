@@ -150,6 +150,15 @@ void DimmerManager::SetIdleState(bool idle, int idleLevel) {
     }
 }
 
+void DimmerManager::SetDimmingEnabled(bool enabled) {
+    m_dimmingEnabled = enabled;
+    for (auto& mon : m_monitors) {
+        if (mon.hwndOverlay) {
+            TriggerFade(mon.hwndOverlay);
+        }
+    }
+}
+
 void DimmerManager::TriggerFade(HWND hwnd) {
     if (hwnd) {
         SetTimer(hwnd, 1, 16, nullptr);
@@ -187,20 +196,25 @@ LRESULT CALLBACK DimmerManager::OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, L
     switch (msg) {
         case WM_TIMER: {
             if (wp == 1 && info) {
-                int target = info->enabled ? info->dimValue : 0;
-                if (info->enabled && DimmerManager::Instance().IsIdleState()) {
+                int target = 0;
+                if (DimmerManager::Instance().IsIdleState()) {
+                    // Dim when user is away (Idle Dimming)
                     target = DimmerManager::Instance().GetIdleDimLevel();
-                } else if (info->enabled && DimmerManager::Instance().GetFocusMode()) {
-                    POINT pt;
-                    if (GetCursorPos(&pt)) {
-                        HMONITOR hActive = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
-                        MONITORINFOEXW mi;
-                        mi.cbSize = sizeof(mi);
-                        if (GetMonitorInfoW(hActive, &mi)) {
-                            if (wcscmp(info->id.c_str(), mi.szDevice) != 0) {
-                                // Dim inactive monitor deeper (+25%, capped at 90%)
-                                target = info->dimValue + 25;
-                                if (target > 90) target = 90;
+                } else if (DimmerManager::Instance().IsDimmingEnabled() && info->enabled) {
+                    // Active dimming is enabled right now
+                    target = info->dimValue;
+                    if (DimmerManager::Instance().GetFocusMode()) {
+                        POINT pt;
+                        if (GetCursorPos(&pt)) {
+                            HMONITOR hActive = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+                            MONITORINFOEXW mi;
+                            mi.cbSize = sizeof(mi);
+                            if (GetMonitorInfoW(hActive, &mi)) {
+                                if (wcscmp(info->id.c_str(), mi.szDevice) != 0) {
+                                    // Dim inactive monitor deeper (+25%, capped at 90%)
+                                    target = info->dimValue + 25;
+                                    if (target > 90) target = 90;
+                                }
                             }
                         }
                     }
