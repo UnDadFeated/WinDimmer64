@@ -2,6 +2,14 @@
 
 All notable changes to the WinDimmer64 project are documented here.
 
+## [1.1.0] - 2026-05-27
+
+### Updates
+* **Fixed Installer**: App now extracts correctly with proper error messages. Shows install status on welcome screen — detects running instances, existing versions, and handles each case cleanly.
+* **Installer Icon**: Professional icon and version info metadata on the installer executable.
+* **Video Playback Detection**: Dimming pauses when a video is playing in a browser or media player (windowed or fullscreen).
+* **Update Check**: Automatically checks GitHub for new releases on startup.
+
 ## [1.0.9] - 2026-05-27
 
 ### Updates
