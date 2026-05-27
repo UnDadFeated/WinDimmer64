@@ -4,6 +4,10 @@
 #include <shellapi.h>
 #include <strsafe.h>
 
+#ifndef D2DERR_RECREATED
+#define D2DERR_RECREATED ((HRESULT)0x8898000CL)
+#endif
+
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
 #pragma comment(lib, "dwmapi.lib")
@@ -72,8 +76,8 @@ bool MainWindow::Create(HINSTANCE hInst, int nCmdShow) {
 
     if (!m_hwnd) return false;
 
-    // Enable Windows 11 rounded corners and dark theme
-    BOOL useDark = TRUE;
+    // Enable Windows 11 rounded corners and dark/light theme
+    BOOL useDark = !m_config.lightMode;
     DwmSetWindowAttribute(m_hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
     
     DWORD cornerPreference = DWMWCP_ROUND;
@@ -91,27 +95,7 @@ bool MainWindow::Create(HINSTANCE hInst, int nCmdShow) {
     DimmerManager::Instance().SetShowBoundaries(m_config.showBoundaries);
 
     // Synchronize monitor settings from loaded configuration
-    const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
-    for (const auto& mon : activeMons) {
-        bool found = false;
-        for (auto& savedMon : m_config.monitors) {
-            if (savedMon.id == mon.id) {
-                DimmerManager::Instance().SetMonitorDim(mon.id, savedMon.value);
-                DimmerManager::Instance().SetMonitorEnabled(mon.id, savedMon.enabled);
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            // New monitor, add to config list
-            MonitorConfig newMon;
-            newMon.id = mon.id;
-            newMon.value = m_config.masterValue;
-            newMon.enabled = true;
-            m_config.monitors.push_back(newMon);
-            DimmerManager::Instance().SetMonitorDim(mon.id, newMon.value);
-        }
-    }
+    SyncMonitorsWithConfig();
 
     // Apply warm tint and focus mode settings
     DimmerManager::Instance().SetWarmTint(m_config.warmTint);
@@ -370,6 +354,18 @@ void MainWindow::UpdateLayout() {
     ito.rect.bottom = ito.rect.top + 18;
     m_checkboxes.push_back(ito);
 
+    yOffset += 28;
+
+    // Light Mode Toggle
+    UICheckbox lm;
+    lm.settingName = L"LightMode";
+    lm.checked = m_config.lightMode;
+    lm.rect.left = 25;
+    lm.rect.top = yOffset;
+    lm.rect.right = lm.rect.left + 18;
+    lm.rect.bottom = lm.rect.top + 18;
+    m_checkboxes.push_back(lm);
+
     if (m_config.idleDimEnabled) {
         // Inactivity Minutes Slider Card
         UISlider idleMin;
@@ -410,8 +406,30 @@ void MainWindow::OnPaint() {
     m_pRenderTarget->BeginDraw();
     m_pRenderTarget->SetTransform(D2D1::IdentityMatrix());
     
+    // Dynamic HSL-Tailored Color Theme Tokens
+    if (m_config.lightMode) {
+        m_pBrushBg->SetColor(D2D1::ColorF(0xF2F2F7));
+        m_pBrushCard->SetColor(D2D1::ColorF(0xFFFFFF));
+        m_pBrushCardBorder->SetColor(D2D1::ColorF(0xD1D1D6));
+        m_pBrushText->SetColor(D2D1::ColorF(0x1C1C1E));
+        m_pBrushTextMuted->SetColor(D2D1::ColorF(0x8E8E93));
+        m_pBrushTrack->SetColor(D2D1::ColorF(0xE5E5EA));
+        m_pBrushAccent->SetColor(D2D1::ColorF(0x007AFF));
+        m_pBrushAccentHover->SetColor(D2D1::ColorF(0x0056B3));
+    } else {
+        // Antigravity Obsidian Dark Theme (with sleek silver lines)
+        m_pBrushBg->SetColor(D2D1::ColorF(0x0B0B0C));
+        m_pBrushCard->SetColor(D2D1::ColorF(0x121214));
+        m_pBrushCardBorder->SetColor(D2D1::ColorF(0x8A8A8F, 0.35f)); // premium subtle silver line
+        m_pBrushText->SetColor(D2D1::ColorF(0xF2F2F7));
+        m_pBrushTextMuted->SetColor(D2D1::ColorF(0x8E8E93));
+        m_pBrushTrack->SetColor(D2D1::ColorF(0x2C2C2E));
+        m_pBrushAccent->SetColor(D2D1::ColorF(0x0A84FF));
+        m_pBrushAccentHover->SetColor(D2D1::ColorF(0x64D2FF));
+    }
+
     // Clear screen
-    m_pRenderTarget->Clear(D2D1::ColorF(0x131315));
+    m_pRenderTarget->Clear(m_config.lightMode ? D2D1::ColorF(0xF2F2F7) : D2D1::ColorF(0x0B0B0C));
 
     // Draw Title Header
     m_pRenderTarget->DrawText(
@@ -527,6 +545,7 @@ void MainWindow::OnPaint() {
         else if (cb.settingName == L"FocusMode") textLabel = L"Focused Screen Highlight";
         else if (cb.settingName == L"IdleDimEnabled") textLabel = L"Dim screen when idle";
         else if (cb.settingName == L"IdleTurnOff") textLabel = L"Turn off screen on idle";
+        else if (cb.settingName == L"LightMode") textLabel = L"Light Mode Theme Toggle";
 
         if (!textLabel.empty()) {
             m_pRenderTarget->DrawText(
@@ -538,7 +557,11 @@ void MainWindow::OnPaint() {
         }
     }
 
-    m_pRenderTarget->EndDraw();
+    HRESULT hr = m_pRenderTarget->EndDraw();
+    if (hr == D2DERR_RECREATED) {
+        DiscardGraphicsResources();
+        InvalidateRect(m_hwnd, nullptr, FALSE);
+    }
 }
 
 void MainWindow::HandleMouseMove(int x, int y) {
@@ -702,6 +725,11 @@ void MainWindow::HandleLButtonDown(int x, int y) {
                 UpdateLayout();
             } else if (cb.settingName == L"IdleTurnOff") {
                 m_config.idleTurnOff = cb.checked;
+            } else if (cb.settingName == L"LightMode") {
+                m_config.lightMode = cb.checked;
+                BOOL useDark = !m_config.lightMode;
+                DwmSetWindowAttribute(m_hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &useDark, sizeof(useDark));
+                SetWindowPos(m_hwnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
             }
 
             SaveSettings();
@@ -840,6 +868,31 @@ void MainWindow::LoadSettings() {
 
 void MainWindow::SaveSettings() {
     ConfigManager::SaveConfig(ConfigManager::GetConfigPath(), m_config);
+}
+
+void MainWindow::SyncMonitorsWithConfig() {
+    const auto& activeMons = DimmerManager::Instance().GetActiveMonitors();
+    for (const auto& mon : activeMons) {
+        bool found = false;
+        for (auto& savedMon : m_config.monitors) {
+            if (savedMon.id == mon.id) {
+                DimmerManager::Instance().SetMonitorDim(mon.id, savedMon.value);
+                DimmerManager::Instance().SetMonitorEnabled(mon.id, savedMon.enabled);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            // New monitor, add to config list
+            MonitorConfig newMon;
+            newMon.id = mon.id;
+            newMon.value = m_config.masterValue;
+            newMon.enabled = true;
+            m_config.monitors.push_back(newMon);
+            DimmerManager::Instance().SetMonitorDim(mon.id, newMon.value);
+        }
+    }
+    SaveSettings();
 }
 
 void MainWindow::ToggleStartWithWindows(bool enable) {
@@ -1006,6 +1059,7 @@ LRESULT CALLBACK MainWindow::WndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) 
             }
             case WM_DISPLAYCHANGE: {
                 DimmerManager::Instance().RefreshMonitors();
+                self->SyncMonitorsWithConfig();
                 self->UpdateLayout();
                 InvalidateRect(hwnd, nullptr, TRUE);
                 return 0;

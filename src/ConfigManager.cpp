@@ -73,6 +73,7 @@ AppConfig ConfigManager::LoadConfig(const std::wstring& filePath) {
     if (findValue(L"IdleTurnOff", val)) config.idleTurnOff = ParseBool(val);
     if (findValue(L"MasterValue", val)) config.masterValue = ParseInt(val);
     if (findValue(L"MasterEnabled", val)) config.masterEnabled = ParseBool(val);
+    if (findValue(L"LightMode", val)) config.lightMode = ParseBool(val);
 
     // Parse Monitors array
     size_t monitorsPos = content.find(L"\"Monitors\"");
@@ -130,6 +131,7 @@ void ConfigManager::SaveConfig(const std::wstring& filePath, const AppConfig& co
     file << L"  \"IdleTurnOff\": " << (config.idleTurnOff ? L"true" : L"false") << L",\n";
     file << L"  \"MasterValue\": " << config.masterValue << L",\n";
     file << L"  \"MasterEnabled\": " << (config.masterEnabled ? L"true" : L"false") << L",\n";
+    file << L"  \"LightMode\": " << (config.lightMode ? L"true" : L"false") << L",\n";
     file << L"  \"Monitors\": [\n";
 
     for (size_t i = 0; i < config.monitors.size(); ++i) {

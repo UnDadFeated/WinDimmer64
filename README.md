@@ -1,4 +1,10 @@
-# WinDimmer64 (v1.0.0)
+# WinDimmer64 (v1.0.2)
+
+![Release](https://img.shields.io/github/v/release/UnDadFeated/WinDimmer64?style=flat-square&color=0078d4)
+![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011%20%28x64%29-0078d4?style=flat-square&logo=windows)
+![Language](https://img.shields.io/badge/Language-C%2B%2B17-f34b7d?style=flat-square&logo=c%2B%2B)
+![License](https://img.shields.io/github/license/UnDadFeated/WinDimmer64?style=flat-square&color=2ea44f)
+![Binary Size](https://img.shields.io/badge/Binary%20Size-%3C%20200%20KB-brightgreen?style=flat-square)
 
 A lightweight, modern, and high-performance screen dimming and OLED burn-in prevention utility designed specifically for Windows 11 (x64) in native C++.
 
@@ -44,8 +50,8 @@ The project can be built using standard Windows compiler toolchains. An automate
    ```
 3. If using LLVM-MinGW/Clang:
    ```cmd
-   llvm-windres resources.rc -O coff -o resources.o
-   clang++ -O2 -std=c++17 -mwindows -o WinDimmer64.exe main.cpp MainWindow.cpp DimmerManager.cpp ConfigManager.cpp resources.o -lgdi32 -ld2d1 -ldwrite -ldwmapi -lole32 -luuid
+   llvm-windres resources\resources.rc -O coff -o resources\resources.o
+   clang++ -O2 -std=c++17 -mwindows -o WinDimmer64.exe src\main.cpp src\MainWindow.cpp src\DimmerManager.cpp src\ConfigManager.cpp resources\resources.o -lgdi32 -ld2d1 -ldwrite -ldwmapi -lole32 -luuid
    ```
 
 ---

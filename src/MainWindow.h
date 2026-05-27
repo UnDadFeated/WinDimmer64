@@ -62,6 +62,7 @@ private:
     void LoadSettings();
     void SaveSettings();
     void ToggleStartWithWindows(bool enable);
+    void SyncMonitorsWithConfig();
 
     HWND m_hwnd = nullptr;
     HINSTANCE m_hInst = nullptr;

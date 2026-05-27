@@ -25,6 +25,7 @@ struct AppConfig {
 
     int masterValue = 30; // 0 to 90
     bool masterEnabled = true;
+    bool lightMode = false;
     std::vector<MonitorConfig> monitors;
 };
 

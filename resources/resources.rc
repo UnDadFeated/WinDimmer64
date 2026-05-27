@@ -3,3 +3,36 @@
 // Enable visual styles v6 & DPI awareness
 1 24 "manifest.xml"
 
+// Version Information
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,2,0
+ PRODUCTVERSION 1,0,2,0
+ FILEFLAGSMASK 0x3fL
+#ifdef _DEBUG
+ FILEFLAGS 0x1L
+#else
+ FILEFLAGS 0x0L
+#endif
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "CompanyName", "WinDimmer64"
+            VALUE "FileDescription", "WinDimmer64 Screen Dimmer Utility"
+            VALUE "FileVersion", "1.0.2.0"
+            VALUE "InternalName", "WinDimmer64"
+            VALUE "LegalCopyright", "Copyright (C) 2026"
+            VALUE "OriginalFilename", "WinDimmer64.exe"
+            VALUE "ProductName", "WinDimmer64"
+            VALUE "ProductVersion", "1.0.2.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

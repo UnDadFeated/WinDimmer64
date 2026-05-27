@@ -76,8 +76,6 @@ void DimmerManager::CreateOverlayForMonitor(ActiveMonitorInfo& info) {
     );
 
     if (info.hwndOverlay) {
-        SetWindowLongPtrW(info.hwndOverlay, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&info));
-        
         // Start from 0 dim for a beautiful fade-in on startup!
         info.currentDimValue = 0;
         SetLayeredWindowAttributes(info.hwndOverlay, 0, 0, LWA_ALPHA);
@@ -175,7 +173,16 @@ DimmerManager::~DimmerManager() {
 }
 
 LRESULT CALLBACK DimmerManager::OverlayWndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
-    auto* info = reinterpret_cast<ActiveMonitorInfo*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    ActiveMonitorInfo* info = nullptr;
+    if (msg == WM_NCCREATE) {
+        CREATESTRUCT* cs = reinterpret_cast<CREATESTRUCT*>(lp);
+        info = reinterpret_cast<ActiveMonitorInfo*>(cs->lpCreateParams);
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(info));
+    } else if (msg == WM_NCDESTROY) {
+        SetWindowLongPtrW(hwnd, GWLP_USERDATA, 0);
+    } else {
+        info = reinterpret_cast<ActiveMonitorInfo*>(GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    }
 
     switch (msg) {
         case WM_TIMER: {
